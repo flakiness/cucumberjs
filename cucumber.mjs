@@ -1,6 +1,6 @@
 export default {
   paths: ['features/**/*.feature'],
-  import: ['features/support/**/*.js'],
+  import: ['tsx/esm', 'features/support/**/*.ts'],
   format: ['@cucumber/pretty-formatter'],
   parallel: 0,
 };

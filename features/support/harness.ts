@@ -4,6 +4,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+export type SampleProjectFiles = Record<string, string>;
+
+export type SampleProjectRun = {
+  status: number,
+  stdout: string,
+  stderr: string,
+  targetDir: string,
+};
+
 export const ARTIFACTS_DIR = process.platform === 'darwin'
   ? '/private/tmp/flakiness-cucumber'
   : path.join(os.tmpdir(), 'flakiness-cucumber');
@@ -13,7 +22,7 @@ const CUCUMBER_BIN = path.join(PROJECT_ROOT, 'node_modules', '@cucumber', 'cucum
 const FORMATTER_PATH = path.join(PROJECT_ROOT, 'lib', 'formatter.js');
 const NODE_MODULES_PATH = path.join(PROJECT_ROOT, 'node_modules');
 
-const DEFAULT_FILES = {
+const DEFAULT_FILES: SampleProjectFiles = {
   'package.json': JSON.stringify({
     name: 'sample-cucumber-project',
     version: '1.0.0',
@@ -21,7 +30,7 @@ const DEFAULT_FILES = {
   }, null, 2),
 };
 
-export function runSampleProject(files) {
+export function runSampleProject(files: SampleProjectFiles): SampleProjectRun {
   const targetDir = path.join(ARTIFACTS_DIR, crypto.randomUUID());
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
@@ -62,7 +71,7 @@ export function runSampleProject(files) {
   };
 }
 
-function initGitRepo(targetDir) {
+function initGitRepo(targetDir: string): void {
   execFileSync('git', ['init'], { cwd: targetDir, stdio: 'pipe' });
   execFileSync('git', ['add', '.'], { cwd: targetDir, stdio: 'pipe' });
   execFileSync(
