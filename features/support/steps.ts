@@ -59,6 +59,27 @@ Given<TestWorld>('a flaky scenario report', async function() {
   });
 });
 
+Given<TestWorld>('a tagged scenario report', async function() {
+  this.reportResult = await generateFlakinessReport('tagged scenario', {
+    'features/tagged.feature': `
+      @feature-tag
+      Feature: Tagged
+        @smoke @fast
+        Scenario: it has tags
+          Given a passing step
+    `,
+    'features/support/steps.js': `
+      const { Given } = require('@cucumber/cucumber');
+
+      Given('a passing step', function() {});
+    `,
+  }, {
+    env: {
+      BUILD_URL: 'https://ci.example.test/build/123',
+    },
+  });
+});
+
 When<TestWorld>('I look at the first suite', function() {
   this.suite = this.reportResult?.report?.suites?.[0];
 });
@@ -99,4 +120,11 @@ Then<TestWorld>('the test contains {int} attempt(s)', function(expectedAttempts:
 
 Then<TestWorld>('attempt #{int} {word}', function(attemptIdx, status) {
   assert.equal(this.test?.attempts[attemptIdx - 1]?.status ?? 'passed', status);
+});
+
+Then<TestWorld>('the test has tags {string}', function(tags: string) {
+  assert.deepEqual(
+    [...(this.test?.tags ?? [])].sort(),
+    tags.split(',').map(tag => tag.trim()).filter(Boolean).sort(),
+  );
 });

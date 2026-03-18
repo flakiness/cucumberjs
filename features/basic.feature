@@ -16,3 +16,12 @@ Feature: Basic Functionality
     Then the test contains 2 attempts
     And attempt #1 failed
     And attempt #2 passed
+
+  Scenario: captures test tags
+    Given a tagged scenario report
+
+    When I look at the first suite
+    Then the suite contains 1 test
+
+    When I look at the first test
+    Then the test has tags "feature-tag, smoke, fast"
