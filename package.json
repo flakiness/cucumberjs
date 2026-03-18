@@ -2,9 +2,18 @@
   "name": "@flakiness/cucumberjs",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "exports": {
+    ".": {
+      "types": "./types/src/formatter.d.ts",
+      "import": "./lib/formatter.js",
+      "require": "./lib/formatter.js"
+    }
+  },
+  "main": "./lib/formatter.js",
+  "types": "./types/src/formatter.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "kubik build.mts",
+    "test": "cucumber-js"
   },
   "keywords": [],
   "author": "",
@@ -13,5 +22,13 @@
   "dependencies": {
     "@flakiness/flakiness-report": "^0.28.0",
     "@flakiness/sdk": "^2.2.2"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.7.0",
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "kubik": "^0.24.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

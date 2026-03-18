@@ -1,4 +1,6 @@
 .flakiness/
+types/
+lib/
 test-results/
 flakiness-report/
 server/test-uploader-data-dir/
