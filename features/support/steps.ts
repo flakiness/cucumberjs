@@ -1,13 +1,15 @@
 import type { IWorld } from '@cucumber/cucumber';
 import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ARTIFACTS_DIR, generateFlakinessReport } from './harness.ts';
 import type { GenerateFlakinessReportResult, SampleProjectFiles } from './harness.ts';
+import { ARTIFACTS_DIR, generateFlakinessReport } from './harness.ts';
 
 type TestWorld = IWorld & {
   files?: SampleProjectFiles,
   reportResult?: GenerateFlakinessReportResult,
+  suite?: FK.Suite,
 };
 
 BeforeAll(function() {
@@ -38,6 +40,10 @@ When<TestWorld>('I generate a Flakiness report with the local formatter', async 
   });
 });
 
+When<TestWorld>('I look at the first suite', function() {
+  this.suite = this.reportResult?.report?.suites?.[0];
+});
+
 Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok(this.reportResult, 'Expected report result to be defined');
   const { report, log, targetDir } = this.reportResult;
@@ -49,9 +55,6 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok(report.commitId, 'Expected commitId to be present');
   assert.ok(report.startTimestamp > 0, 'Expected startTimestamp to be present');
   assert.ok(report.duration > 0, 'Expected duration to be positive');
-  assert.equal(report.tests, undefined);
-  assert.equal(report.suites, undefined);
-  assert.deepEqual(report.sources, []);
 
   assert.ok((report.cpuCount ?? 0) > 0, 'Expected cpuCount to be populated');
   assert.ok((report.cpuAvg?.length ?? 0) > 0, 'Expected cpuAvg telemetry to be populated');
@@ -62,4 +65,8 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.equal(log.stderr, '', `Expected stderr to be empty.\n\nSTDERR:\n${log.stderr}`);
   assert.ok(log.stdout.includes('npx flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
   assert.ok(targetDir.includes('minimal-formatter'), `Expected deterministic targetDir.\n\nTarget dir: ${targetDir}`);
+});
+
+Then<TestWorld>('the suite contains {int} test(s)', function(expectedTests: number) {
+  assert.ok(this.suite?.tests?.length === expectedTests, `Wrong number of tests`);
 });

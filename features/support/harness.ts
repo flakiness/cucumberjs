@@ -1,5 +1,6 @@
-import { execFileSync, spawnSync } from 'node:child_process';
 import { readReport } from '@flakiness/sdk';
+import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -138,4 +139,9 @@ function formatOptionsArgs(formatOptions: Record<string, unknown> | undefined): 
   if (!formatOptions || !Object.keys(formatOptions).length)
     return [];
   return ['--format-options', JSON.stringify(formatOptions)];
+}
+
+export function assertCount<T>(elements: T[] | undefined, count: number): T[] {
+  assert.equal(elements?.length, count);
+  return elements!;
 }

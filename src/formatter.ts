@@ -1,6 +1,17 @@
 import type { IFormatterOptions } from '@cucumber/cucumber';
 import { Formatter } from '@cucumber/cucumber';
-import type { Envelope, TestRunFinished, TestRunStarted } from '@cucumber/messages';
+import type {
+  Envelope,
+  Location,
+  TestCaseFinished,
+  TestCaseStarted,
+  TestRunFinished,
+  TestRunStarted,
+  Timestamp,
+} from '@cucumber/messages';
+import {
+  TestStepResultStatus,
+} from '@cucumber/messages';
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import {
   CIUtils,
@@ -29,8 +40,11 @@ export default class FlakinessCucumberFormatter extends Formatter {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
   private _startTimestamp = Date.now() as FK.UnixTimestampMS;
   private _outputFolder: string;
-  private _finalizePromise = new ManualPromise<void>;
   private _telemetryTimer?: NodeJS.Timeout;
+
+  private _finishedPromise = new ManualPromise();
+  private _testCaseStartedById = new Map<string, TestCaseStarted>();
+  private _testCaseFinishedById = new Map<string, TestCaseFinished>();
 
   constructor(options: IFormatterOptions) {
     super(options);
@@ -45,21 +59,40 @@ export default class FlakinessCucumberFormatter extends Formatter {
     options.eventBroadcaster.on('envelope', (envelope: Envelope) => {
       if (envelope.testRunStarted)
         this._onTestRunStarted(envelope.testRunStarted);
-      if (envelope.testRunFinished)
-        this._onTestRunFinished(envelope.testRunFinished);
-
+      if (envelope.testCaseStarted)
+        this._onTestCaseStarted(envelope.testCaseStarted);
+      if (envelope.testCaseFinished)
+        this._onTestCaseFinished(envelope.testCaseFinished);
+      if (envelope.testRunFinished) {
+        this._onTestRunFinished(envelope.testRunFinished)
+          .then(() => this._finishedPromise.resolve(undefined))
+          .catch((e) => this._finishedPromise.reject(e));
+      }
     });
   }
 
   private _onTestRunStarted(testRunStarted: TestRunStarted) {
-    this._startTimestamp = Date.now() as FK.UnixTimestampMS;
+    this._startTimestamp = toUnixTimestampMS(testRunStarted.timestamp);
+  }
+
+  private _onTestCaseStarted(testCaseStarted: TestCaseStarted) {
+    this._testCaseStartedById.set(testCaseStarted.id, testCaseStarted);
+  }
+
+  private _onTestCaseFinished(testCaseFinished: TestCaseFinished) {
+    this._testCaseFinishedById.set(testCaseFinished.testCaseStartedId, testCaseFinished);
   }
 
   override async finished(): Promise<void> {
     if (this._telemetryTimer)
       clearTimeout(this._telemetryTimer);
-    await this._finalizePromise;
-    
+
+    try {
+      await this._finishedPromise.promise;
+    } catch (error) {
+      console.error(`[flakiness.io] Failed to generate report: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);      
+    }
+
     await super.finished();
   }
 
@@ -70,8 +103,6 @@ export default class FlakinessCucumberFormatter extends Formatter {
   }
 
   private async _onTestRunFinished(testRunFinished: TestRunFinished): Promise<void> {
-    if (this._telemetryTimer)
-      clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
 
@@ -86,17 +117,17 @@ export default class FlakinessCucumberFormatter extends Formatter {
       return;
     }
 
-    const duration = (Date.now() - this._startTimestamp) as FK.DurationMS;
     const report = ReportUtils.normalizeReport({
       category: 'cucumberjs',
       commitId,
-      duration,
+      duration: (toUnixTimestampMS(testRunFinished.timestamp) - this._startTimestamp) as FK.DurationMS,
       environments: [
         ReportUtils.createEnvironment({
           name: 'cucumberjs',
         }),
       ],
       flakinessProject: this._config.flakinessProject,
+      suites: this._collectSuites(worktree),
       startTimestamp: this._startTimestamp,
       url: CIUtils.runUrl(),
     });
@@ -121,7 +152,57 @@ To open last Flakiness report, run:
 
   npx flakiness show ${folder}
 `);
-    this._finalizePromise.resolve();
+  }
+
+  private _collectSuites(worktree: GitWorktree): FK.Suite[] {
+    const uriToFile = new Map<string, FK.Suite>();
+    const uriToTests = new Map<string, Map<string, FK.Test>>();
+
+    for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
+      const attemptData = this.eventDataCollector.getTestCaseAttempt(testCaseStartedId);
+      const featureUri = attemptData.pickle.uri;
+      let suite = uriToFile.get(featureUri);
+      if (!suite) {
+        suite = {
+          type: 'file',
+          title: path.basename(featureUri),
+          location: attemptData.gherkinDocument.feature?.location
+            ? createLocation(worktree, this.cwd, featureUri, attemptData.gherkinDocument.feature.location)
+            : undefined,
+          tests: [],
+        };
+        uriToFile.set(featureUri, suite);
+        uriToTests.set(featureUri, new Map());
+      }
+
+      const testsById = uriToTests.get(featureUri)!;
+      let test = testsById.get(attemptData.testCase.id);
+      if (!test) {
+        test = {
+          title: attemptData.pickle.name,
+          location: attemptData.pickle.location
+            ? createLocation(worktree, this.cwd, featureUri, attemptData.pickle.location)
+            : undefined,
+          tags: attemptData.pickle.tags.map(tag => stripTagPrefix(tag.name)),
+          attempts: [],
+        };
+        testsById.set(attemptData.testCase.id, test);
+        suite.tests!.push(test);
+      }
+
+      const testCaseFinished = this._testCaseFinishedById.get(testCaseStartedId);
+      const startTimestamp = toUnixTimestampMS(testCaseStarted.timestamp);
+      const finishTimestamp = testCaseFinished ? toUnixTimestampMS(testCaseFinished.timestamp) : startTimestamp;
+
+      test.attempts.push({
+        environmentIdx: 0,
+        startTimestamp,
+        duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
+        status: toFKStatus(attemptData.worstTestStepResult.status),
+      });
+    }
+
+    return Array.from(uriToFile.values());
   }
 }
 
@@ -137,6 +218,40 @@ function parseFormatterConfig(parsedArgvOptions: IFormatterOptions['parsedArgvOp
     outputFolder: typeof parsedArgvOptions.outputFolder === 'string' ? parsedArgvOptions.outputFolder : undefined,
     token: typeof parsedArgvOptions.token === 'string' ? parsedArgvOptions.token : undefined,
   };
+}
+
+function createLocation(worktree: GitWorktree, cwd: string, relativeFile: string, location: Location): FK.Location {
+  return {
+    file: worktree.gitPath(path.resolve(cwd, relativeFile)),
+    line: location.line as FK.Number1Based,
+    column: (location.column ?? 1) as FK.Number1Based,
+  };
+}
+
+function stripTagPrefix(tag: string): string {
+  return tag.startsWith('@') ? tag.slice(1) : tag;
+}
+
+function toFKStatus(status: TestStepResultStatus | undefined): FK.TestStatus {
+  switch (status) {
+    case TestStepResultStatus.PASSED:
+      return 'passed';
+    case TestStepResultStatus.SKIPPED:
+      return 'skipped';
+    case TestStepResultStatus.UNKNOWN:
+      return 'interrupted';
+    case TestStepResultStatus.PENDING:
+    case TestStepResultStatus.UNDEFINED:
+    case TestStepResultStatus.AMBIGUOUS:
+    case TestStepResultStatus.FAILED:
+      return 'failed';
+    default:
+      return 'interrupted';
+  }
+}
+
+function toUnixTimestampMS(timestamp: Timestamp): FK.UnixTimestampMS {
+  return (timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000)) as FK.UnixTimestampMS;
 }
 
 class ManualPromise<T> {
