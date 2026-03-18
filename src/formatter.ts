@@ -1,6 +1,6 @@
 import type { IFormatterOptions } from '@cucumber/cucumber';
 import { Formatter } from '@cucumber/cucumber';
-import type { Envelope } from '@cucumber/messages';
+import type { Envelope, TestRunFinished, TestRunStarted } from '@cucumber/messages';
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import {
   CIUtils,
@@ -8,19 +8,15 @@ import {
   GitWorktree,
   RAMUtilization,
   ReportUtils,
-  showReport,
   uploadReport,
-  writeReport,
+  writeReport
 } from '@flakiness/sdk';
 import path from 'node:path';
-
-type OpenMode = 'always' | 'never' | 'on-failure';
 
 type FormatterConfig = {
   disableUpload?: boolean,
   endpoint?: string,
   flakinessProject?: string,
-  open?: OpenMode,
   outputFolder?: string,
   token?: string,
 };
@@ -33,7 +29,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
   private _ramUtilization = new RAMUtilization({ precision: 10 });
   private _startTimestamp = Date.now() as FK.UnixTimestampMS;
   private _outputFolder: string;
-  private _finalizePromise?: Promise<void>;
+  private _finalizePromise = new ManualPromise<void>;
   private _telemetryTimer?: NodeJS.Timeout;
 
   constructor(options: IFormatterOptions) {
@@ -48,13 +44,15 @@ export default class FlakinessCucumberFormatter extends Formatter {
     // in an Envelope and carries one payload such as testRunStarted or attachment.
     options.eventBroadcaster.on('envelope', (envelope: Envelope) => {
       if (envelope.testRunStarted)
-        this._startTimestamp = Date.now() as FK.UnixTimestampMS;
-      if (!envelope.testRunFinished || this._finalizePromise)
-        return;
-      this._finalizePromise = this._onTestRunFinished().catch(error => {
-        console.error(`[flakiness.io] Failed to generate report: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
-      });
+        this._onTestRunStarted(envelope.testRunStarted);
+      if (envelope.testRunFinished)
+        this._onTestRunFinished(envelope.testRunFinished);
+
     });
+  }
+
+  private _onTestRunStarted(testRunStarted: TestRunStarted) {
+    this._startTimestamp = Date.now() as FK.UnixTimestampMS;
   }
 
   override async finished(): Promise<void> {
@@ -71,7 +69,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
   }
 
-  private async _onTestRunFinished(): Promise<void> {
+  private async _onTestRunFinished(testRunFinished: TestRunFinished): Promise<void> {
     if (this._telemetryTimer)
       clearTimeout(this._telemetryTimer);
     this._cpuUtilization.sample();
@@ -116,13 +114,6 @@ export default class FlakinessCucumberFormatter extends Formatter {
       });
     }
 
-    const openMode = this._config.open ?? 'on-failure';
-    const shouldOpen = process.stdin.isTTY && !process.env.CI && openMode === 'always';
-    if (shouldOpen) {
-      await showReport(this._outputFolder);
-      return;
-    }
-
     const defaultOutputFolder = path.join(this.cwd, 'flakiness-report');
     const folder = defaultOutputFolder === this._outputFolder ? '' : path.relative(this.cwd, this._outputFolder);
     this.log(`
@@ -130,6 +121,7 @@ To open last Flakiness report, run:
 
   npx flakiness show ${folder}
 `);
+    this._finalizePromise.resolve();
   }
 }
 
@@ -142,12 +134,29 @@ function parseFormatterConfig(parsedArgvOptions: IFormatterOptions['parsedArgvOp
     disableUpload: typeof parsedArgvOptions.disableUpload === 'boolean' ? parsedArgvOptions.disableUpload : undefined,
     endpoint: typeof parsedArgvOptions.endpoint === 'string' ? parsedArgvOptions.endpoint : undefined,
     flakinessProject: typeof parsedArgvOptions.flakinessProject === 'string' ? parsedArgvOptions.flakinessProject : undefined,
-    open: isOpenMode(parsedArgvOptions.open) ? parsedArgvOptions.open : undefined,
     outputFolder: typeof parsedArgvOptions.outputFolder === 'string' ? parsedArgvOptions.outputFolder : undefined,
     token: typeof parsedArgvOptions.token === 'string' ? parsedArgvOptions.token : undefined,
   };
 }
 
-function isOpenMode(value: unknown): value is OpenMode {
-  return value === 'always' || value === 'never' || value === 'on-failure';
+class ManualPromise<T> {
+  readonly promise: Promise<T>;
+  private _resolve!: (t: T) => void;
+  private _reject!: (err: any) => void;
+
+  constructor() {
+    this.promise = new Promise<T>((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject = reject;
+    });
+  }
+
+  resolve(e: T) {
+    this._resolve(e);
+  }
+
+  reject(e: any) {
+    this._reject(e);
+  }
 }
+
