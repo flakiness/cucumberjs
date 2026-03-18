@@ -1,9 +1,18 @@
+import type { IWorld } from '@cucumber/cucumber';
+import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import { readReport } from '@flakiness/sdk';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+export type TestWorld = IWorld & {
+  reportResult?: GenerateFlakinessReportResult,
+  files?: SampleProjectFiles,
+  suite?: FK.Suite,
+  test?: FK.Test,
+};
 
 export type SampleProjectFiles = Record<string, string>;
 

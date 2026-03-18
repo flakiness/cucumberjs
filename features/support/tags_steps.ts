@@ -1,7 +1,6 @@
 import { Given, Then } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
-import type { TestWorld } from './test_world.ts';
-import { generateFlakinessReport } from './harness.ts';
+import { generateFlakinessReport, TestWorld } from './harness.ts';
 
 Given<TestWorld>('a tagged scenario report', async function() {
   this.reportResult = await generateFlakinessReport('tagged scenario', {

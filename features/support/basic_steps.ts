@@ -1,8 +1,7 @@
 import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ARTIFACTS_DIR, assertCount, generateFlakinessReport } from './harness.ts';
-import type { TestWorld } from './test_world.ts';
+import { ARTIFACTS_DIR, assertCount, generateFlakinessReport, TestWorld } from './harness.ts';
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
