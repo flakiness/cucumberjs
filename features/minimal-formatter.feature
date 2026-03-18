@@ -1,5 +1,5 @@
 Feature: Minimal formatter
-  Scenario: local formatter runs for a passing nested project
+  Scenario: local formatter generates a basic report
     Given a sample Cucumber project with a passing scenario
-    When I run the sample project with the local formatter
-    Then the formatter output should contain "[fk-cucumber] minimal formatter finished 1 scenario(s) [it passes]"
+    When I generate a Flakiness report with the local formatter
+    Then the report should contain the basic metadata

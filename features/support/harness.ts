@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { readReport } from '@flakiness/sdk';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,6 +10,20 @@ export type SampleProjectRun = {
   status: number,
   stdout: string,
   stderr: string,
+  targetDir: string,
+  reportDir: string,
+};
+
+export type SampleProjectOptions = {
+  env?: Record<string, string | undefined>,
+  formatOptions?: Record<string, unknown>,
+};
+
+export type GenerateFlakinessReportResult = Awaited<ReturnType<typeof readReport>> & {
+  log: {
+    stdout: string,
+    stderr: string,
+  },
   targetDir: string,
 };
 
@@ -28,8 +43,9 @@ const DEFAULT_FILES: SampleProjectFiles = {
   }, null, 2),
 };
 
-export function runSampleProject(name: string, files: SampleProjectFiles): SampleProjectRun {
+export function runSampleProject(name: string, files: SampleProjectFiles, options: SampleProjectOptions = {}): SampleProjectRun {
   const targetDir = path.join(ARTIFACTS_DIR, slugify(name));
+  const reportDir = path.join(targetDir, 'flakiness-report');
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
 
@@ -50,12 +66,14 @@ export function runSampleProject(name: string, files: SampleProjectFiles): Sampl
       'features/support/**/*.js',
       '--format',
       FORMATTER_PATH,
+      ...formatOptionsArgs(options.formatOptions),
     ],
     {
       cwd: targetDir,
       encoding: 'utf8',
       env: {
         ...process.env,
+        ...options.env,
         NODE_PATH: [NODE_MODULES_PATH, process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
       },
     },
@@ -66,6 +84,32 @@ export function runSampleProject(name: string, files: SampleProjectFiles): Sampl
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
     targetDir,
+    reportDir,
+  };
+}
+
+export async function generateFlakinessReport(
+  name: string,
+  files: SampleProjectFiles,
+  options: SampleProjectOptions = {},
+): Promise<GenerateFlakinessReportResult> {
+  const run = runSampleProject(name, files, {
+    env: options.env,
+    formatOptions: {
+      ...options.formatOptions,
+      outputFolder: path.join(ARTIFACTS_DIR, slugify(name), 'flakiness-report'),
+      disableUpload: true,
+      open: 'never',
+    },
+  });
+
+  return {
+    ...(await readReport(run.reportDir)),
+    log: {
+      stdout: run.stdout,
+      stderr: run.stderr,
+    },
+    targetDir: run.targetDir,
   };
 }
 
@@ -88,4 +132,10 @@ function slugify(value: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .toLowerCase();
+}
+
+function formatOptionsArgs(formatOptions: Record<string, unknown> | undefined): string[] {
+  if (!formatOptions || !Object.keys(formatOptions).length)
+    return [];
+  return ['--format-options', JSON.stringify(formatOptions)];
 }

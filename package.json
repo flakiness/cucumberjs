@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.7.0",
+    "@cucumber/messages": "^32.2.0",
     "@types/node": "^25.5.0",
     "esbuild": "^0.27.4",
     "kubik": "^0.24.0",
