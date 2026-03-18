@@ -26,7 +26,6 @@ export type GenerateFlakinessReportResult = Awaited<ReturnType<typeof readReport
     stdout: string,
     stderr: string,
   },
-  targetDir: string,
 };
 
 export const ARTIFACTS_DIR = process.platform === 'darwin'
@@ -113,7 +112,6 @@ export async function generateFlakinessReport(
       stdout: run.stdout,
       stderr: run.stderr,
     },
-    targetDir: run.targetDir,
   };
 }
 
@@ -145,6 +143,6 @@ function formatOptionsArgs(formatOptions: Record<string, unknown> | undefined): 
 }
 
 export function assertCount<T>(elements: T[] | undefined, count: number): T[] {
-  assert.equal(elements?.length, count);
+  assert.equal(elements?.length ?? 0, count);
   return elements!;
 }

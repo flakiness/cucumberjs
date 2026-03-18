@@ -161,17 +161,24 @@ To open last Flakiness report, run:
     for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
       const attemptData = this.eventDataCollector.getTestCaseAttempt(testCaseStartedId);
       const featureUri = attemptData.pickle.uri;
-      let suite = uriToFile.get(featureUri);
-      if (!suite) {
-        suite = {
+      attemptData.gherkinDocument.feature?.name
+      let fileSuite = uriToFile.get(featureUri);
+
+      if (!fileSuite) {
+        fileSuite = {
           type: 'file',
           title: path.basename(featureUri),
-          location: attemptData.gherkinDocument.feature?.location
-            ? createLocation(worktree, this.cwd, featureUri, attemptData.gherkinDocument.feature.location)
-            : undefined,
-          tests: [],
+          location: createLocation(worktree, this.cwd, featureUri, { line: 0, column: 0 }),
+          suites: [{
+            type: 'suite',
+            title: attemptData.gherkinDocument.feature?.name ?? '',
+            location: attemptData.gherkinDocument.feature?.location
+              ? createLocation(worktree, this.cwd, featureUri, attemptData.gherkinDocument.feature?.location)
+              : undefined,
+            tests: [],
+          }],
         };
-        uriToFile.set(featureUri, suite);
+        uriToFile.set(featureUri, fileSuite);
         uriToTests.set(featureUri, new Map());
       }
 
@@ -187,7 +194,7 @@ To open last Flakiness report, run:
           attempts: [],
         };
         testsById.set(attemptData.testCase.id, test);
-        suite.tests!.push(test);
+        fileSuite.suites![0].tests!.push(test);
       }
 
       const testCaseFinished = this._testCaseFinishedById.get(testCaseStartedId);

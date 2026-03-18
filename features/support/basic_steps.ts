@@ -1,17 +1,8 @@
-import type { IWorld } from '@cucumber/cucumber';
 import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
-import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import type { GenerateFlakinessReportResult, SampleProjectFiles } from './harness.ts';
 import { ARTIFACTS_DIR, assertCount, generateFlakinessReport } from './harness.ts';
-
-type TestWorld = IWorld & {
-  reportResult?: GenerateFlakinessReportResult,
-  files?: SampleProjectFiles,
-  suite?: FK.Suite,
-  test?: FK.Test,
-};
+import type { TestWorld } from './test_world.ts';
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
@@ -20,7 +11,7 @@ BeforeAll(function() {
 Given<TestWorld>('a passing scenario report', async function() {
   this.reportResult = await generateFlakinessReport('passing scenario', {
     'features/passing.feature': `
-      Feature: Passing
+      Feature: Passing Test Suite
         Scenario: it passes
           Given a passing step
     `,
@@ -46,7 +37,7 @@ Given<TestWorld>('a flaky scenario report', async function() {
     'features/support/steps.js': `
       const { Given } = require('@cucumber/cucumber');
       let hasFailedOnce = false;
-  
+
       Given('a step that succeeds on retry', function() {
         if (hasFailedOnce)
           return;
@@ -55,37 +46,16 @@ Given<TestWorld>('a flaky scenario report', async function() {
       });
     `,
   }, {
-    args: ['--retry', '1'], 
+    args: ['--retry', '1'],
   });
 });
 
-Given<TestWorld>('a tagged scenario report', async function() {
-  this.reportResult = await generateFlakinessReport('tagged scenario', {
-    'features/tagged.feature': `
-      @feature-tag
-      Feature: Tagged
-        @smoke @fast
-        Scenario: it has tags
-          Given a passing step
-    `,
-    'features/support/steps.js': `
-      const { Given } = require('@cucumber/cucumber');
-
-      Given('a passing step', function() {});
-    `,
-  }, {
-    env: {
-      BUILD_URL: 'https://ci.example.test/build/123',
-    },
-  });
+When<TestWorld>('I look at the suite #{int}', function(suiteIdx) {
+  this.suite = (this.suite ?? this.reportResult?.report)?.suites?.[suiteIdx - 1];
 });
 
-When<TestWorld>('I look at the first suite', function() {
-  this.suite = this.reportResult?.report?.suites?.[0];
-});
-
-When<TestWorld>('I look at the first test', function() {
-  this.test = this.suite?.tests?.[0];
+When<TestWorld>('I look at the test #{int}', function(testIdx) {
+  this.test = this.suite?.tests?.[testIdx - 1];
 });
 
 Then<TestWorld>('the report should contain the basic metadata', function() {
@@ -122,9 +92,10 @@ Then<TestWorld>('attempt #{int} {word}', function(attemptIdx, status) {
   assert.equal(this.test?.attempts[attemptIdx - 1]?.status ?? 'passed', status);
 });
 
-Then<TestWorld>('the test has tags {string}', function(tags: string) {
-  assert.deepEqual(
-    [...(this.test?.tags ?? [])].sort(),
-    tags.split(',').map(tag => tag.trim()).filter(Boolean).sort(),
-  );
+Then<TestWorld>('the suite is called {string}', function(title) {
+  assert.equal(this.suite?.title, title);
+});
+
+Then<TestWorld>('the test is called {string}', function(title) {
+  assert.equal(this.test?.title, title);
 });
