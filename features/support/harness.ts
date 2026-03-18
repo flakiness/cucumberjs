@@ -1,5 +1,4 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,15 +25,13 @@ const DEFAULT_FILES: SampleProjectFiles = {
   'package.json': JSON.stringify({
     name: 'sample-cucumber-project',
     version: '1.0.0',
-    type: 'module',
   }, null, 2),
 };
 
-export function runSampleProject(files: SampleProjectFiles): SampleProjectRun {
-  const targetDir = path.join(ARTIFACTS_DIR, crypto.randomUUID());
+export function runSampleProject(name: string, files: SampleProjectFiles): SampleProjectRun {
+  const targetDir = path.join(ARTIFACTS_DIR, slugify(name));
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
-  fs.symlinkSync(NODE_MODULES_PATH, path.join(targetDir, 'node_modules'), 'dir');
 
   for (const [filePath, content] of Object.entries({ ...DEFAULT_FILES, ...files })) {
     const fullPath = path.join(targetDir, ...filePath.split('/'));
@@ -49,7 +46,7 @@ export function runSampleProject(files: SampleProjectFiles): SampleProjectRun {
     [
       CUCUMBER_BIN,
       'features/**/*.feature',
-      '--import',
+      '--require',
       'features/support/**/*.js',
       '--format',
       FORMATTER_PATH,
@@ -59,6 +56,7 @@ export function runSampleProject(files: SampleProjectFiles): SampleProjectRun {
       encoding: 'utf8',
       env: {
         ...process.env,
+        NODE_PATH: [NODE_MODULES_PATH, process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
       },
     },
   );
@@ -82,4 +80,12 @@ function initGitRepo(targetDir: string): void {
       stdio: 'pipe',
     },
   );
+}
+
+function slugify(value: string): string {
+  return value
+    .replace(/[^.a-zA-Z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 }

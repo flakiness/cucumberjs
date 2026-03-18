@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import type { IWorld } from '@cucumber/cucumber';
 import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { ARTIFACTS_DIR, runSampleProject } from './harness.ts';
 import type { SampleProjectFiles, SampleProjectRun } from './harness.ts';
 
@@ -22,7 +22,7 @@ Given<TestWorld>('a sample Cucumber project with a passing scenario', function()
           Given a passing step
     `,
     'features/support/steps.js': `
-      import { Given } from '@cucumber/cucumber';
+      const { Given } = require('@cucumber/cucumber');
 
       Given('a passing step', function() {});
     `,
@@ -31,7 +31,7 @@ Given<TestWorld>('a sample Cucumber project with a passing scenario', function()
 
 When<TestWorld>('I run the sample project with the local formatter', function() {
   assert.ok(this.files, 'Expected sample files to be defined');
-  this.run = runSampleProject(this.files);
+  this.run = runSampleProject('minimal-formatter', this.files);
 });
 
 Then<TestWorld>('the formatter output should contain {string}', function(expected: string) {
