@@ -15,7 +15,8 @@ export type SampleProjectRun = {
   reportDir: string,
 };
 
-export type SampleProjectOptions = {
+export type ProjectRunOptions = {
+  args?: string[],
   env?: Record<string, string | undefined>,
   formatOptions?: Record<string, unknown>,
 };
@@ -44,7 +45,7 @@ const DEFAULT_FILES: SampleProjectFiles = {
   }, null, 2),
 };
 
-export function runSampleProject(name: string, files: SampleProjectFiles, options: SampleProjectOptions = {}): SampleProjectRun {
+function runSampleProject(name: string, files: SampleProjectFiles, options: ProjectRunOptions = {}): SampleProjectRun {
   const targetDir = path.join(ARTIFACTS_DIR, slugify(name));
   const reportDir = path.join(targetDir, 'flakiness-report');
   fs.rmSync(targetDir, { recursive: true, force: true });
@@ -65,6 +66,7 @@ export function runSampleProject(name: string, files: SampleProjectFiles, option
       'features/**/*.feature',
       '--require',
       'features/support/**/*.js',
+      ...(options.args ?? []),
       '--format',
       FORMATTER_PATH,
       ...formatOptionsArgs(options.formatOptions),
@@ -92,9 +94,10 @@ export function runSampleProject(name: string, files: SampleProjectFiles, option
 export async function generateFlakinessReport(
   name: string,
   files: SampleProjectFiles,
-  options: SampleProjectOptions = {},
+  options: ProjectRunOptions = {},
 ): Promise<GenerateFlakinessReportResult> {
   const run = runSampleProject(name, files, {
+    args: options.args,
     env: options.env,
     formatOptions: {
       ...options.formatOptions,

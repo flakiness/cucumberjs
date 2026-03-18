@@ -4,20 +4,21 @@ import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type { GenerateFlakinessReportResult, SampleProjectFiles } from './harness.ts';
-import { ARTIFACTS_DIR, generateFlakinessReport } from './harness.ts';
+import { ARTIFACTS_DIR, assertCount, generateFlakinessReport } from './harness.ts';
 
 type TestWorld = IWorld & {
-  files?: SampleProjectFiles,
   reportResult?: GenerateFlakinessReportResult,
+  files?: SampleProjectFiles,
   suite?: FK.Suite,
+  test?: FK.Test,
 };
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
 });
 
-Given<TestWorld>('a sample Cucumber project with a passing scenario', function() {
-  this.files = {
+Given<TestWorld>('a passing scenario report', async function() {
+  this.reportResult = await generateFlakinessReport('passing scenario', {
     'features/passing.feature': `
       Feature: Passing
         Scenario: it passes
@@ -28,15 +29,33 @@ Given<TestWorld>('a sample Cucumber project with a passing scenario', function()
 
       Given('a passing step', function() {});
     `,
-  };
-});
-
-When<TestWorld>('I generate a Flakiness report with the local formatter', async function() {
-  assert.ok(this.files, 'Expected sample files to be defined');
-  this.reportResult = await generateFlakinessReport('minimal-formatter', this.files, {
+  }, {
     env: {
       BUILD_URL: 'https://ci.example.test/build/123',
     },
+  });
+});
+
+Given<TestWorld>('a flaky scenario report', async function() {
+  this.reportResult = await generateFlakinessReport('flaky scenario', {
+    'features/eventually-passing.feature': `
+      Feature: Eventually passing
+        Scenario: it succeeds on retry
+          Given a step that succeeds on retry
+    `,
+    'features/support/steps.js': `
+      const { Given } = require('@cucumber/cucumber');
+      let hasFailedOnce = false;
+  
+      Given('a step that succeeds on retry', function() {
+        if (hasFailedOnce)
+          return;
+        hasFailedOnce = true;
+        throw new Error('intentional first-attempt failure');
+      });
+    `,
+  }, {
+    args: ['--retry', '1'], 
   });
 });
 
@@ -44,9 +63,13 @@ When<TestWorld>('I look at the first suite', function() {
   this.suite = this.reportResult?.report?.suites?.[0];
 });
 
+When<TestWorld>('I look at the first test', function() {
+  this.test = this.suite?.tests?.[0];
+});
+
 Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok(this.reportResult, 'Expected report result to be defined');
-  const { report, log, targetDir } = this.reportResult;
+  const { report, log } = this.reportResult;
 
   assert.equal(report.category, 'cucumberjs');
   assert.equal(report.url, 'https://ci.example.test/build/123');
@@ -64,9 +87,16 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
 
   assert.equal(log.stderr, '', `Expected stderr to be empty.\n\nSTDERR:\n${log.stderr}`);
   assert.ok(log.stdout.includes('npx flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
-  assert.ok(targetDir.includes('minimal-formatter'), `Expected deterministic targetDir.\n\nTarget dir: ${targetDir}`);
 });
 
 Then<TestWorld>('the suite contains {int} test(s)', function(expectedTests: number) {
-  assert.ok(this.suite?.tests?.length === expectedTests, `Wrong number of tests`);
+  assertCount(this.suite?.tests, expectedTests);
+});
+
+Then<TestWorld>('the test contains {int} attempt(s)', function(expectedAttempts: number) {
+  assertCount(this.test?.attempts, expectedAttempts);
+});
+
+Then<TestWorld>('attempt #{int} {word}', function(attemptIdx, status) {
+  assert.equal(this.test?.attempts[attemptIdx - 1]?.status ?? 'passed', status);
 });
