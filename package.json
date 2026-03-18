@@ -9,5 +9,9 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@flakiness/flakiness-report": "^0.28.0",
+    "@flakiness/sdk": "^2.2.2"
+  }
 }
