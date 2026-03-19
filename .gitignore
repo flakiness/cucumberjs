@@ -24,6 +24,7 @@ drivers/
 nohup.out
 .trace
 .tmp
+coverage/
 allure*
 blob-report
 playwright-report

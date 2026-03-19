@@ -6,6 +6,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 export type TestWorld = IWorld & {
   reportResult?: GenerateFlakinessReportResult,
@@ -120,6 +121,7 @@ export async function generateFlakinessReport(
       open: 'never',
     },
   });
+  await waitForReport(run);
 
   return {
     ...(await readReport(run.reportDir)),
@@ -160,4 +162,20 @@ function formatOptionsArgs(formatOptions: Record<string, unknown> | undefined): 
 export function assertCount<T>(elements: T[] | undefined, count: number): T[] {
   assert.equal(elements?.length ?? 0, count);
   return elements!;
+}
+
+async function waitForReport(run: SampleProjectRun): Promise<void> {
+  const reportPath = path.join(run.reportDir, 'report.json');
+  for (let attempt = 0; attempt < 50; ++attempt) {
+    if (fs.existsSync(reportPath))
+      return;
+    await delay(20);
+  }
+
+  throw new Error([
+    `Report not found at ${reportPath}`,
+    `Exit status: ${run.status}`,
+    `STDOUT:\n${run.stdout}`,
+    `STDERR:\n${run.stderr}`,
+  ].join('\n\n'));
 }
