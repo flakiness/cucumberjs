@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type { TestWorld } from './harness.ts';
 import { ARTIFACTS_DIR, assertCount } from './harness.ts';
+import type { FlakinessReport as FK } from '@flakiness/flakiness-report';
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
@@ -30,20 +31,72 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok(log.stdout.includes('npx flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
 });
 
-When<TestWorld>('I look at the suite #{int}', function(suiteIdx) {
-  this.suite = (this.suite ?? this.reportResult?.report)?.suites?.[suiteIdx - 1];
+When<TestWorld>('I look at the suite named {string}', function(title: string) {
+  this.suite = findUnique(
+    collectSuites(this.reportResult?.report?.suites ?? []),
+    suite => suite.title === title,
+    `suite named ${JSON.stringify(title)}`,
+  );
+  this.test = undefined;
+  this.attempt = undefined;
+  this.step = undefined;
+  this.attachment = undefined;
+  this.stdio = undefined;
 });
 
-When<TestWorld>('I look at the test #{int}', function(testIdx) {
-  this.test = this.suite?.tests?.[testIdx - 1];
+When<TestWorld>('I look at the test named {string}', function(title: string) {
+  this.test = findUnique(
+    collectTests(this.reportResult?.report?.suites ?? []),
+    test => test.title === title,
+    `test named ${JSON.stringify(title)}`,
+  );
+  this.attempt = undefined;
+  this.step = undefined;
+  this.attachment = undefined;
+  this.stdio = undefined;
 });
 
 When<TestWorld>('I look at the attempt #{int}', function(attemptIdx) {
-  this.attempt = this.test?.attempts[attemptIdx - 1]
+  this.attempt = this.test?.attempts[attemptIdx - 1];
+  this.step = undefined;
+  this.attachment = undefined;
+  this.stdio = undefined;
+});
+
+When<TestWorld>('I look at the {string} attempt', function(status: string) {
+  this.attempt = findUnique(
+    this.test?.attempts ?? [],
+    attempt => (attempt.status ?? 'passed') === status,
+    `${JSON.stringify(status)} attempt`,
+  );
+  this.step = undefined;
+  this.attachment = undefined;
+  this.stdio = undefined;
 });
 
 When<TestWorld>('I look at the step #{int}', function(stepIdx) {
   this.step = this.attempt?.steps?.[stepIdx - 1];
+  this.attachment = undefined;
+  this.stdio = undefined;
+});
+
+When<TestWorld>('I look at the step named {string}', function(title: string) {
+  this.step = findUnique(
+    this.attempt?.steps ?? [],
+    step => step.title === title,
+    `step named ${JSON.stringify(title)}`,
+  );
+  this.attachment = undefined;
+  this.stdio = undefined;
+});
+
+Then<TestWorld>('the report contains {int} test(s)', function(expectedTests: number) {
+  assertCount(collectTests(this.reportResult?.report?.suites ?? []), expectedTests);
+});
+
+Then<TestWorld>('the report hierarchy is:', function(expectedHierarchy: string) {
+  const hierarchy = renderReportHierarchy(this.reportResult?.report);
+  assert.equal(normalizeMultiline(hierarchy), normalizeMultiline(expectedHierarchy));
 });
 
 Then<TestWorld>('the suite contains {int} test(s)', function(expectedTests: number) {
@@ -54,8 +107,16 @@ Then<TestWorld>('the test contains {int} attempt(s)', function(expectedAttempts:
   assertCount(this.test?.attempts, expectedAttempts);
 });
 
-Then<TestWorld>('the attempt contains {int} step(s)', function(epxectedSteps: number) {
-  assertCount(this.attempt?.steps, epxectedSteps);
+Then<TestWorld>('the attempt contains {int} step(s)', function(expectedSteps: number) {
+  assertCount(this.attempt?.steps, expectedSteps);
+});
+
+Then<TestWorld>('the attempt contains {int} step(s):', function(expectedSteps: number, expectedStepTitles: string) {
+  const steps = assertCount(this.attempt?.steps, expectedSteps);
+  assert.deepEqual(
+    steps.map(step => step.title),
+    parseMultilineList(expectedStepTitles),
+  );
 });
 
 Then<TestWorld>('the step contains {int} steps(s)', function(expectedSteps: number) {
@@ -83,7 +144,87 @@ Then<TestWorld>('the step is called {string}', function(title) {
   assert.equal(this.step?.title, title);
 });
 
+Then<TestWorld>('the step #{int} is called {string}', function(stepIdx: number, title: string) {
+  assert.equal(this.attempt?.steps?.[stepIdx - 1]?.title, title);
+});
+
 Then<TestWorld>('the step is in file {string} at line {int}', function(file, line) {
   assert.equal(this.step?.location?.file, file);
   assert.equal(this.step?.location?.line, line);
 });
+
+function collectSuites(suites: FK.Suite[]): FK.Suite[] {
+  return suites.flatMap(suite => [suite, ...collectSuites(suite.suites ?? [])]);
+}
+
+function collectTests(suites: FK.Suite[]): FK.Test[] {
+  return suites.flatMap(suite => [...(suite.tests ?? []), ...collectTests(suite.suites ?? [])]);
+}
+
+function findUnique<T>(elements: T[], predicate: (element: T) => boolean, description: string): T {
+  const matches = elements.filter(predicate);
+  assert.equal(matches.length, 1, `Expected exactly 1 ${description}, got ${matches.length}`);
+  return matches[0]!;
+}
+
+function renderReportHierarchy(report: FK.Report | undefined): string {
+  return renderTree(
+    (report?.suites ?? []).map(suite => renderSuiteNode(suite)),
+  );
+}
+
+type TreeNode = {
+  label: string,
+  children?: TreeNode[],
+};
+
+function renderSuiteNode(suite: FK.Suite): TreeNode {
+  const label = suite.type === 'file' ? `file ${suite.title}` : `suite ${suite.title}`;
+  return {
+    label,
+    children: [
+      ...(suite.suites ?? []).map(renderSuiteNode),
+      ...(suite.tests ?? []).map(renderTestNode),
+    ],
+  };
+}
+
+function renderTestNode(test: FK.Test): TreeNode {
+  return {
+    label: `test ${test.title}`,
+    children: test.attempts.map((attempt, index) => ({
+      label: `attempt #${index + 1} ${attempt.status ?? 'passed'}`,
+      children: (attempt.steps ?? []).map(step => ({
+        label: `step ${step.title}`,
+      })),
+    })),
+  };
+}
+
+function renderTree(nodes: TreeNode[]): string {
+  return nodes.flatMap((node, index) => renderTreeNode(node, '', index === nodes.length - 1)).join('\n');
+}
+
+function renderTreeNode(node: TreeNode, prefix: string, isLast: boolean): string[] {
+  const branch = isLast ? '`- ' : '|- ';
+  const childPrefix = prefix + (isLast ? '   ' : '|  ');
+  return [
+    `${prefix}${branch}${node.label}`,
+    ...(node.children ?? []).flatMap((child, index, children) => renderTreeNode(child, childPrefix, index === children.length - 1)),
+  ];
+}
+
+function normalizeMultiline(text: string): string {
+  return text
+    .trim()
+    .split('\n')
+    .map(line => line.trimEnd())
+    .join('\n');
+}
+
+function parseMultilineList(text: string): string[] {
+  return normalizeMultiline(text)
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+}

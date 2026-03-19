@@ -13,21 +13,16 @@ Feature: Errors
         throw new Error('intentional failure');
       });
       """
-    And the environment variable "BUILD_URL" is "https://ci.example.test/build/123"
     When I generate the Flakiness report for "failing scenario"
-
-    When I look at the suite #1
-    And I look at the suite #1
-    Then the suite contains 1 test
-
-    When I look at the test #1
+    When I look at the test named "it fails"
     Then the test contains 1 attempt
-
-    When I look at the attempt #1
+    When I look at the "failed" attempt
+    # Make sure the attempt has error
     Then the attempt contains 1 error
     And the attempt error #1 has message "intentional failure"
     And the attempt error #1 has a stack trace
 
-    When the attempt contains 1 step
-    Then I look at the step #1
+    # Make sure the same error exists in step too
+    Then the attempt contains 1 step
+    When I look at the step named "a step that throws an error"
     And the step has an error with message "intentional failure"

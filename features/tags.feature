@@ -15,10 +15,5 @@ Feature: Tags
       """
     And the environment variable "BUILD_URL" is "https://ci.example.test/build/123"
     When I generate the Flakiness report for "tagged scenario"
-
-    When I look at the suite #1
-    And I look at the suite #1
-    Then the suite contains 1 test
-
-    When I look at the test #1
+    When I look at the test named "it has tags"
     Then the test has tags "feature-tag, smoke, fast"
