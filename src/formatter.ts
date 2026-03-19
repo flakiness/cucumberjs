@@ -8,11 +8,9 @@ import type {
   TestCaseStarted,
   TestRunFinished,
   TestRunStarted,
-  Timestamp,
+  Timestamp
 } from '@cucumber/messages';
-import {
-  TestStepResultStatus,
-} from '@cucumber/messages';
+import { AttachmentContentEncoding, TestStepResultStatus } from '@cucumber/messages';
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import {
   CIUtils,
@@ -37,6 +35,8 @@ type LineAndUri = {
   line: number,
   uri: string,
 };
+
+const CUCUMBER_LOG_MEDIA_TYPE = 'text/x.cucumber.log+plain';
 
 export default class FlakinessCucumberFormatter extends Formatter {
   static documentation = 'Generates a Flakiness report for a CucumberJS run.';
@@ -214,6 +214,7 @@ To open last Flakiness report, run:
       const errors = parsedAttempt.testSteps
         .map(step => extractErrorFromStep(worktree, this.cwd, step))
         .filter((error): error is FK.ReportError => !!error);
+      const stdio = extractSTDIOFromTestSteps(parsedAttempt.testSteps, startTimestamp);
 
       test.attempts.push({
         environmentIdx: 0,
@@ -221,6 +222,7 @@ To open last Flakiness report, run:
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
         errors: errors.length ? errors : undefined,
+        stdio: stdio.length ? stdio : undefined,
         steps: parsedAttempt.testSteps.map(step => ({
           title: toFKStepTitle(step),
           duration: toDurationMS(step.result.duration),
@@ -339,6 +341,35 @@ function extractErrorFromStep(
     value,
   };
 }
+
+function extractSTDIOFromTestSteps(
+  steps: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'],
+  startTimestamp: FK.UnixTimestampMS,
+): FK.TimedSTDIOEntry[] {
+  const stdio: FK.TimedSTDIOEntry[] = [];
+  let previousTimestamp = startTimestamp;
+
+  for (const step of steps) {
+    for (const attachment of step.attachments) {
+      if (attachment.mediaType !== CUCUMBER_LOG_MEDIA_TYPE)
+        continue;
+
+      const timestamp = attachment.timestamp ? toUnixTimestampMS(attachment.timestamp) : previousTimestamp;
+      stdio.push({
+        ...(attachment.contentEncoding === AttachmentContentEncoding.BASE64 ? {
+          buffer: attachment.body
+        } : {
+          text: attachment.body
+        }),
+        dts: Math.max(0, timestamp - previousTimestamp) as FK.DurationMS,
+      });
+      previousTimestamp = timestamp;
+    }
+  }
+
+  return stdio;
+}
+
 
 class ManualPromise<T> {
   readonly promise: Promise<T>;

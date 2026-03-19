@@ -14,6 +14,7 @@ export type TestWorld = IWorld & {
   test?: FK.Test,
   attempt?: FK.RunAttempt,
   step?: FK.TestStep,
+  stdio?: FK.TimedSTDIOEntry,
 };
 
 export type SampleProjectFiles = Record<string, string>;
