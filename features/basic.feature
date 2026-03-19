@@ -13,6 +13,7 @@ Feature: Basic Functionality
 
         When I look at the test #1
         Then the test is called "it passes"
+        And the test is in file "features/passing.feature" at line 3
 
   Scenario: captures a scenario that succeeds on retry
     Given a flaky scenario report

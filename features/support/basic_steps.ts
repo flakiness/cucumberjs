@@ -120,6 +120,11 @@ Then<TestWorld>('the test is called {string}', function(title) {
   assert.equal(this.test?.title, title);
 });
 
+Then<TestWorld>('the test is in file {string} at line {int}', function(file, line) {
+  assert.equal(this.test?.location?.file, file);
+  assert.equal(this.test?.location?.line, line);
+});
+
 Then<TestWorld>('the step is called {string}', function(title) {
   assert.equal(this.step?.title, title);
 });
