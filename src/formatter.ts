@@ -211,15 +211,20 @@ To open last Flakiness report, run:
       const testCaseFinished = this._testCaseFinishedById.get(testCaseStartedId);
       const startTimestamp = toUnixTimestampMS(testCaseStarted.timestamp);
       const finishTimestamp = testCaseFinished ? toUnixTimestampMS(testCaseFinished.timestamp) : startTimestamp;
+      const errors = parsedAttempt.testSteps
+        .map(step => extractErrorFromStep(worktree, this.cwd, step))
+        .filter((error): error is FK.ReportError => !!error);
 
       test.attempts.push({
         environmentIdx: 0,
         startTimestamp,
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
+        errors: errors.length ? errors : undefined,
         steps: parsedAttempt.testSteps.map(step => ({
           title: toFKStepTitle(step),
           duration: toDurationMS(step.result.duration),
+          error: extractErrorFromStep(worktree, this.cwd, step),
           location: step.sourceLocation
             ? createLineAndUriLocation(worktree, this.cwd, step.sourceLocation)
             : step.actionLocation
@@ -299,6 +304,40 @@ function toFKStepTitle(step: ReturnType<typeof formatterHelpers.parseTestCaseAtt
   if (step.name)
     return `${step.keyword} (${step.name})`;
   return step.keyword;
+}
+
+function extractErrorFromStep(
+  worktree: GitWorktree,
+  cwd: string,
+  step: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number],
+): FK.ReportError | undefined {
+  const status = step.result.status;
+  if (
+    status === TestStepResultStatus.PASSED ||
+    status === TestStepResultStatus.SKIPPED ||
+    status === TestStepResultStatus.UNKNOWN
+  ) {
+    return undefined;
+  }
+
+  const message = step.result.exception?.message ?? step.result.message;
+  const stack = step.result.exception?.stackTrace;
+  const value = !message && step.result.exception?.type ? step.result.exception.type : undefined;
+  const location = step.sourceLocation
+    ? createLineAndUriLocation(worktree, cwd, step.sourceLocation)
+    : step.actionLocation
+      ? createLineAndUriLocation(worktree, cwd, step.actionLocation)
+      : undefined;
+
+  if (!message && !stack && !value)
+    return undefined;
+
+  return {
+    location,
+    message,
+    stack,
+    value,
+  };
 }
 
 class ManualPromise<T> {
