@@ -1,6 +1,7 @@
 import type { IFormatterOptions } from '@cucumber/cucumber';
 import { Formatter, formatterHelpers } from '@cucumber/cucumber';
 import type {
+  Attachment as CucumberAttachment,
   Duration,
   Envelope,
   Location,
@@ -35,6 +36,9 @@ type LineAndUri = {
   line: number,
   uri: string,
 };
+
+type ParsedTestStep = ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number];
+type ReportDataAttachment = Awaited<ReturnType<typeof ReportUtils.createDataAttachment>>;
 
 const CUCUMBER_LOG_MEDIA_TYPE = 'text/x.cucumber.log+plain';
 
@@ -124,6 +128,8 @@ export default class FlakinessCucumberFormatter extends Formatter {
       return;
     }
 
+    const { attachments, suites } = await this._collectSuites(worktree);
+
     const report = ReportUtils.normalizeReport({
       category: 'cucumberjs',
       commitId,
@@ -134,7 +140,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
         }),
       ],
       flakinessProject: this._config.flakinessProject,
-      suites: this._collectSuites(worktree),
+      suites,
       startTimestamp: this._startTimestamp,
       url: CIUtils.runUrl(),
     });
@@ -142,11 +148,11 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this._cpuUtilization.enrich(report);
     this._ramUtilization.enrich(report);
 
-    await writeReport(report, [], this._outputFolder);
+    await writeReport(report, attachments, this._outputFolder);
 
     const disableUpload = this._config.disableUpload ?? envBool('FLAKINESS_DISABLE_UPLOAD');
     if (!disableUpload) {
-      await uploadReport(report, [], {
+      await uploadReport(report, attachments, {
         flakinessAccessToken: this._config.token,
         flakinessEndpoint: this._config.endpoint,
       });
@@ -161,9 +167,13 @@ To open last Flakiness report, run:
 `);
   }
 
-  private _collectSuites(worktree: GitWorktree): FK.Suite[] {
+  private async _collectSuites(worktree: GitWorktree): Promise<{
+    attachments: ReportDataAttachment[],
+    suites: FK.Suite[],
+  }> {
     const uriToFile = new Map<string, FK.Suite>();
     const uriToTests = new Map<string, Map<string, FK.Test>>();
+    const attachments = new Map<FK.AttachmentId, ReportDataAttachment>();
 
     for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
       const attemptData = this.eventDataCollector.getTestCaseAttempt(testCaseStartedId);
@@ -222,6 +232,7 @@ To open last Flakiness report, run:
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
         errors: errors.length ? errors : undefined,
+        attachments: await extractAttachmentsFromTestSteps(parsedAttempt.testSteps, attachments),
         stdio: stdio.length ? stdio : undefined,
         steps: parsedAttempt.testSteps.map(step => ({
           title: toFKStepTitle(step),
@@ -236,7 +247,10 @@ To open last Flakiness report, run:
       });
     }
 
-    return Array.from(uriToFile.values());
+    return {
+      attachments: Array.from(attachments.values()),
+      suites: Array.from(uriToFile.values()),
+    };
   }
 }
 
@@ -300,7 +314,7 @@ function createLineAndUriLocation(worktree: GitWorktree, cwd: string, location: 
   };
 }
 
-function toFKStepTitle(step: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number]): string {
+function toFKStepTitle(step: ParsedTestStep): string {
   if (step.text)
     return step.text;
   if (step.name)
@@ -311,7 +325,7 @@ function toFKStepTitle(step: ReturnType<typeof formatterHelpers.parseTestCaseAtt
 function extractErrorFromStep(
   worktree: GitWorktree,
   cwd: string,
-  step: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number],
+  step: ParsedTestStep,
 ): FK.ReportError | undefined {
   const status = step.result.status;
   if (
@@ -343,7 +357,7 @@ function extractErrorFromStep(
 }
 
 function extractSTDIOFromTestSteps(
-  steps: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'],
+  steps: ParsedTestStep[],
   startTimestamp: FK.UnixTimestampMS,
 ): FK.TimedSTDIOEntry[] {
   const stdio: FK.TimedSTDIOEntry[] = [];
@@ -370,6 +384,38 @@ function extractSTDIOFromTestSteps(
   return stdio;
 }
 
+async function extractAttachmentsFromTestSteps(
+  steps: ParsedTestStep[],
+  attachments: Map<FK.AttachmentId, ReportDataAttachment>,
+): Promise<FK.Attachment[]> {
+  const fkAttachments: FK.Attachment[] = [];
+
+  for (const step of steps) {
+    for (const attachment of step.attachments) {
+      if (attachment.mediaType === CUCUMBER_LOG_MEDIA_TYPE)
+        continue;
+
+      const dataAttachment = await ReportUtils.createDataAttachment(
+        attachment.mediaType,
+        decodeAttachmentBody(attachment),
+      );
+      attachments.set(dataAttachment.id, dataAttachment);
+      fkAttachments.push({
+        id: dataAttachment.id,
+        name: attachment.fileName ?? `attachment-${fkAttachments.length + 1}`,
+        contentType: attachment.mediaType,
+      });
+    }
+  }
+
+  return fkAttachments;
+}
+
+function decodeAttachmentBody(attachment: CucumberAttachment): Buffer {
+  if (attachment.contentEncoding === AttachmentContentEncoding.BASE64)
+    return Buffer.from(attachment.body, 'base64');
+  return Buffer.from(attachment.body, 'utf8');
+}
 
 class ManualPromise<T> {
   readonly promise: Promise<T>;

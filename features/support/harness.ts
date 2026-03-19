@@ -13,6 +13,7 @@ export type TestWorld = IWorld & {
   suite?: FK.Suite,
   test?: FK.Test,
   attempt?: FK.RunAttempt,
+  attachment?: FK.Attachment,
   step?: FK.TestStep,
   stdio?: FK.TimedSTDIOEntry,
 };

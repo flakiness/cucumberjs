@@ -1,0 +1,24 @@
+Feature: Attachments
+  Scenario: captures Cucumber attachments
+    Given a scenario report with attachments
+
+    When I look at the suite #1
+    And I look at the suite #1
+    Then the suite contains 1 test
+
+    When I look at the test #1
+    Then the test contains 1 attempt
+
+    When I look at the attempt #1
+    Then the attempt contains 2 attachments
+    And the report contains 0 missing attachments
+
+    When I look at the attachment #1
+    Then the attachment is called "note.txt"
+    And the attachment has content type "text/plain"
+    And the stored attachment has text "hello attachment"
+
+    When I look at the attachment #2
+    Then the attachment is called "data.json"
+    And the attachment has content type "application/json"
+    And the stored attachment has text "{\"ok\":true}"
