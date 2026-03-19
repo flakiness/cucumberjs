@@ -21,3 +21,23 @@ Given<TestWorld>('a scenario report with before and after hooks', async function
     },
   });
 });
+
+Given<TestWorld>('a scenario report with named before and after hooks', async function() {
+  this.reportResult = await generateFlakinessReport('scenario with named hooks', {
+    'features/passing.feature': `
+      Feature: Hooks
+        Scenario: it runs named hooks
+          Given a passing step
+    `,
+    'features/support/steps.js': `
+      const { Before, After, Given } = require('@cucumber/cucumber');
+      Before({ name: 'database setup' }, function() {});
+      After({ name: 'database cleanup' }, function() {});
+      Given('a passing step', function() {});
+    `,
+  }, {
+    env: {
+      BUILD_URL: 'https://ci.example.test/build/123',
+    },
+  });
+});

@@ -4,7 +4,9 @@ import type {
   Attachment as CucumberAttachment,
   Duration,
   Envelope,
+  GherkinDocument,
   Location,
+  Pickle,
   TestCaseFinished,
   TestCaseStarted,
   TestRunFinished,
@@ -184,7 +186,6 @@ To open last Flakiness report, run:
       });
       const featureUri = attemptData.pickle.uri;
       let fileSuite = uriToFile.get(featureUri);
-
       if (!fileSuite) {
         fileSuite = {
           type: 'file',
@@ -207,7 +208,7 @@ To open last Flakiness report, run:
       let test = testsById.get(attemptData.testCase.id);
       if (!test) {
         test = {
-          title: attemptData.pickle.name,
+          title: toFKTestTitle(attemptData.gherkinDocument, attemptData.pickle),
           location: attemptData.pickle.location
             ? createLocation(worktree, this.cwd, featureUri, attemptData.pickle.location)
             : undefined,
@@ -280,6 +281,48 @@ function stripTagPrefix(tag: string): string {
   return tag.startsWith('@') ? tag.slice(1) : tag;
 }
 
+function toFKTestTitle(gherkinDocument: GherkinDocument, pickle: Pickle): string {
+  const exampleValues = extractScenarioOutlineValues(gherkinDocument, pickle);
+  if (exampleValues)
+    return `${pickle.name} [${exampleValues.map(([key, value]) => `${key}=${value}`).join(', ')}]`;
+  return pickle.name;
+}
+
+function extractScenarioOutlineValues(gherkinDocument: GherkinDocument, pickle: Pickle): [string, string][] | undefined {
+  // `astNodeIds` is the list of Gherkin node IDs that produced it.
+  // In practice:
+  // - For a normal scenario, it usually includes the scenario node ID.
+  // - For a Scenario Outline, it includes the scenario node ID and the selected
+  //   example-row node ID.
+  // - For steps, individual pickleStep.astNodeIds point back to the original Gherkin
+  //   step nodes.
+  if (pickle.astNodeIds.length < 2)
+    return undefined;
+
+  // The last nodeId is the selected example row.
+  const exampleRowId = pickle.astNodeIds[pickle.astNodeIds.length - 1];
+
+  // Scenarios might be either under feature, or under feature rules.
+  const scenarios = (gherkinDocument.feature?.children ?? []).flatMap(child => {
+    if (child.rule)
+      return child.rule.children.flatMap(ruleChild => ruleChild.scenario ? [ruleChild.scenario] : []);
+    return child.scenario ? [child.scenario] : [];
+  });
+
+  for (const scenario of scenarios) {
+    for (const examples of scenario.examples) {
+      const row = examples.tableBody.find(row => row.id === exampleRowId);
+      if (!row)
+        continue;
+
+      const headers = examples.tableHeader?.cells.map(cell => cell.value) ?? [];
+      return row.cells.map((cell, index) => [headers[index] ?? `column${index + 1}`, cell.value]);
+    }
+  }
+
+  return undefined;
+}
+
 function toFKStatus(status: TestStepResultStatus | undefined): FK.TestStatus {
   switch (status) {
     case TestStepResultStatus.PASSED:
@@ -315,11 +358,11 @@ function createLineAndUriLocation(worktree: GitWorktree, cwd: string, location: 
 }
 
 function toFKStepTitle(step: ParsedTestStep): string {
-  if (step.text)
-    return step.text;
-  if (step.name)
-    return `${step.keyword} (${step.name})`;
-  return step.keyword;
+  return step.text
+    ? step.text
+    : step.name
+      ? `${step.keyword} (${step.name})`
+      : step.keyword;
 }
 
 function extractErrorFromStep(
