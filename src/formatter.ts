@@ -33,6 +33,11 @@ type FormatterConfig = {
   token?: string,
 };
 
+type LineAndUri = {
+  line: number,
+  uri: string,
+};
+
 export default class FlakinessCucumberFormatter extends Formatter {
   static documentation = 'Generates a Flakiness report for a CucumberJS run.';
 
@@ -215,6 +220,11 @@ To open last Flakiness report, run:
         steps: parsedAttempt.testSteps.map(step => ({
           title: toFKStepTitle(step),
           duration: toDurationMS(step.result.duration),
+          location: step.sourceLocation
+            ? createLineAndUriLocation(worktree, this.cwd, step.sourceLocation)
+            : step.actionLocation
+              ? createLineAndUriLocation(worktree, this.cwd, step.actionLocation)
+              : undefined,
         })),
       });
     }
@@ -273,6 +283,14 @@ function toUnixTimestampMS(timestamp: Timestamp): FK.UnixTimestampMS {
 
 function toDurationMS(timestamp: Duration): FK.DurationMS {
   return (timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000)) as FK.DurationMS;
+}
+
+function createLineAndUriLocation(worktree: GitWorktree, cwd: string, location: LineAndUri): FK.Location {
+  return {
+    file: worktree.gitPath(path.resolve(cwd, location.uri)),
+    line: location.line as FK.Number1Based,
+    column: 1 as FK.Number1Based,
+  };
 }
 
 function toFKStepTitle(step: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number]): string {

@@ -14,3 +14,4 @@ Feature: Tags
 
     Then I look at the step #1
     Then the step is called "a passing step"
+    And the step is in file "features/passing.feature" at line 4
