@@ -1,28 +1,7 @@
-import { Given, Then } from '@cucumber/cucumber';
+import { Then } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import type { TestWorld } from './harness.ts';
-import { assertCount, generateFlakinessReport } from './harness.ts';
-
-Given<TestWorld>('a failing scenario report', async function() {
-  this.reportResult = await generateFlakinessReport('failing scenario', {
-    'features/failing.feature': `
-      Feature: Failing
-        Scenario: it fails
-          Given a step that throws an error
-    `,
-    'features/support/steps.js': `
-      const { Given } = require('@cucumber/cucumber');
-
-      Given('a step that throws an error', function() {
-        throw new Error('intentional failure');
-      });
-    `,
-  }, {
-    env: {
-      BUILD_URL: 'https://ci.example.test/build/123',
-    },
-  });
-});
+import { assertCount } from './harness.ts';
 
 Then<TestWorld>('the attempt contains {int} error', function(expectedErrors: number) {
   assertCount(this.attempt?.errors, expectedErrors);

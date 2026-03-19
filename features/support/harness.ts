@@ -9,7 +9,9 @@ import path from 'node:path';
 
 export type TestWorld = IWorld & {
   reportResult?: GenerateFlakinessReportResult,
-  files?: SampleProjectFiles,
+  projectArgs?: string[],
+  projectEnv?: Record<string, string | undefined>,
+  projectFiles?: ProjectFiles,
   suite?: FK.Suite,
   test?: FK.Test,
   attempt?: FK.RunAttempt,
@@ -18,7 +20,7 @@ export type TestWorld = IWorld & {
   stdio?: FK.TimedSTDIOEntry,
 };
 
-export type SampleProjectFiles = Record<string, string>;
+export type ProjectFiles = Record<string, string>;
 
 export type SampleProjectRun = {
   status: number,
@@ -50,14 +52,14 @@ const CUCUMBER_BIN = path.join(PROJECT_ROOT, 'node_modules', '@cucumber', 'cucum
 const FORMATTER_PATH = path.join(PROJECT_ROOT, 'lib', 'formatter.js');
 const NODE_MODULES_PATH = path.join(PROJECT_ROOT, 'node_modules');
 
-const DEFAULT_FILES: SampleProjectFiles = {
+const DEFAULT_FILES: ProjectFiles = {
   'package.json': JSON.stringify({
     name: 'sample-cucumber-project',
     version: '1.0.0',
   }, null, 2),
 };
 
-function runSampleProject(name: string, files: SampleProjectFiles, options: ProjectRunOptions = {}): SampleProjectRun {
+function runSampleProject(name: string, files: ProjectFiles, options: ProjectRunOptions = {}): SampleProjectRun {
   const targetDir = path.join(ARTIFACTS_DIR, slugify(name));
   const reportDir = path.join(targetDir, 'flakiness-report');
   fs.rmSync(targetDir, { recursive: true, force: true });
@@ -105,7 +107,7 @@ function runSampleProject(name: string, files: SampleProjectFiles, options: Proj
 
 export async function generateFlakinessReport(
   name: string,
-  files: SampleProjectFiles,
+  files: ProjectFiles,
   options: ProjectRunOptions = {},
 ): Promise<GenerateFlakinessReportResult> {
   const run = runSampleProject(name, files, {

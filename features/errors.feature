@@ -1,6 +1,20 @@
 Feature: Errors
   Scenario: captures thrown errors
-    Given a failing scenario report
+    Given the project file "features/failing.feature":
+      """
+      Feature: Failing
+        Scenario: it fails
+          Given a step that throws an error
+      """
+    And the project file "features/support/steps.js":
+      """
+      const { Given } = require('@cucumber/cucumber');
+      Given('a step that throws an error', function() {
+        throw new Error('intentional failure');
+      });
+      """
+    And the environment variable "BUILD_URL" is "https://ci.example.test/build/123"
+    When I generate the Flakiness report for "failing scenario"
 
     When I look at the suite #1
     And I look at the suite #1

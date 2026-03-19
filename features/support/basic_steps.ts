@@ -1,57 +1,11 @@
-import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
+import { BeforeAll, Then, When } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type { TestWorld } from './harness.ts';
-import { ARTIFACTS_DIR, assertCount, generateFlakinessReport } from './harness.ts';
+import { ARTIFACTS_DIR, assertCount } from './harness.ts';
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
-});
-
-Given<TestWorld>('a passing scenario report', async function() {
-  this.reportResult = await generateFlakinessReport('passing scenario', {
-    'features/passing.feature': `
-      Feature: Passing Test Suite
-        Scenario: it passes
-          Given a passing step
-    `,
-    'features/support/steps.js': `
-      const { Given } = require('@cucumber/cucumber');
-
-      Given('a passing step', function() {});
-    `,
-  }, {
-    env: {
-      BUILD_URL: 'https://ci.example.test/build/123',
-    },
-  });
-});
-
-Given<TestWorld>('a flaky scenario report', async function() {
-  this.reportResult = await generateFlakinessReport('flaky scenario', {
-    'features/eventually-passing.feature': `
-      Feature: Eventually passing
-        Scenario: it succeeds on retry
-          Given a step that succeeds on retry
-    `,
-    'features/support/steps.js': `
-      const { Given } = require('@cucumber/cucumber');
-      let hasFailedOnce = false;
-
-      Given('a step that succeeds on retry', function() {
-        if (hasFailedOnce)
-          return;
-        hasFailedOnce = true;
-        throw new Error('intentional first-attempt failure');
-      });
-    `,
-  }, {
-    args: ['--retry', '1'],
-  });
-});
-
-Then<TestWorld>('print', function() {
-  console.log(this.reportResult?.report)
 });
 
 Then<TestWorld>('the report should contain the basic metadata', function() {

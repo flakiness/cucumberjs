@@ -1,6 +1,20 @@
 Feature: Attachments
   Scenario: captures Cucumber attachments
-    Given a scenario report with attachments
+    Given the project file "features/attachments.feature":
+      """
+      Feature: Attachments
+        Scenario: it attaches data
+          Given a step with attachments
+      """
+    And the project file "features/support/steps.js":
+      """
+      const { Given } = require('@cucumber/cucumber');
+      Given('a step with attachments', function() {
+        this.attach('hello attachment', { mediaType: 'text/plain', fileName: 'note.txt' });
+        this.attach(Buffer.from('{"ok":true}', 'utf8'), { mediaType: 'application/json', fileName: 'data.json' });
+      });
+      """
+    When I generate the Flakiness report for "scenario with attachments"
 
     When I look at the suite #1
     And I look at the suite #1
