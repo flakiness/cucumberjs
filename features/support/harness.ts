@@ -12,6 +12,8 @@ export type TestWorld = IWorld & {
   files?: SampleProjectFiles,
   suite?: FK.Suite,
   test?: FK.Test,
+  attempt?: FK.RunAttempt,
+  step?: FK.TestStep,
 };
 
 export type SampleProjectFiles = Record<string, string>;

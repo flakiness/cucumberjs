@@ -1,6 +1,7 @@
 import type { IFormatterOptions } from '@cucumber/cucumber';
-import { Formatter } from '@cucumber/cucumber';
+import { Formatter, formatterHelpers } from '@cucumber/cucumber';
 import type {
+  Duration,
   Envelope,
   Location,
   TestCaseFinished,
@@ -63,6 +64,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
         this._onTestCaseStarted(envelope.testCaseStarted);
       if (envelope.testCaseFinished)
         this._onTestCaseFinished(envelope.testCaseFinished);
+
       if (envelope.testRunFinished) {
         this._onTestRunFinished(envelope.testRunFinished)
           .then(() => this._finishedPromise.resolve(undefined))
@@ -160,8 +162,12 @@ To open last Flakiness report, run:
 
     for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
       const attemptData = this.eventDataCollector.getTestCaseAttempt(testCaseStartedId);
+      const parsedAttempt = formatterHelpers.parseTestCaseAttempt({
+        testCaseAttempt: attemptData,
+        snippetBuilder: this.snippetBuilder,
+        supportCodeLibrary: this.supportCodeLibrary,
+      });
       const featureUri = attemptData.pickle.uri;
-      attemptData.gherkinDocument.feature?.name
       let fileSuite = uriToFile.get(featureUri);
 
       if (!fileSuite) {
@@ -206,6 +212,10 @@ To open last Flakiness report, run:
         startTimestamp,
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
+        steps: parsedAttempt.testSteps.map(step => ({
+          title: toFKStepTitle(step),
+          duration: toDurationMS(step.result.duration),
+        })),
       });
     }
 
@@ -261,6 +271,18 @@ function toUnixTimestampMS(timestamp: Timestamp): FK.UnixTimestampMS {
   return (timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000)) as FK.UnixTimestampMS;
 }
 
+function toDurationMS(timestamp: Duration): FK.DurationMS {
+  return (timestamp.seconds * 1000 + Math.floor(timestamp.nanos / 1_000_000)) as FK.DurationMS;
+}
+
+function toFKStepTitle(step: ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number]): string {
+  if (step.text)
+    return step.text;
+  if (step.name)
+    return `${step.keyword} (${step.name})`;
+  return step.keyword;
+}
+
 class ManualPromise<T> {
   readonly promise: Promise<T>;
   private _resolve!: (t: T) => void;
@@ -281,4 +303,3 @@ class ManualPromise<T> {
     this._reject(e);
   }
 }
-

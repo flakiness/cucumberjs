@@ -1,7 +1,8 @@
 import { BeforeAll, Given, Then, When } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ARTIFACTS_DIR, assertCount, generateFlakinessReport, TestWorld } from './harness.ts';
+import type { TestWorld } from './harness.ts';
+import { ARTIFACTS_DIR, assertCount, generateFlakinessReport } from './harness.ts';
 
 BeforeAll(function() {
   fs.rmSync(ARTIFACTS_DIR, { recursive: true, force: true });
@@ -49,12 +50,8 @@ Given<TestWorld>('a flaky scenario report', async function() {
   });
 });
 
-When<TestWorld>('I look at the suite #{int}', function(suiteIdx) {
-  this.suite = (this.suite ?? this.reportResult?.report)?.suites?.[suiteIdx - 1];
-});
-
-When<TestWorld>('I look at the test #{int}', function(testIdx) {
-  this.test = this.suite?.tests?.[testIdx - 1];
+Then<TestWorld>('print', function() {
+  console.log(this.reportResult?.report)
 });
 
 Then<TestWorld>('the report should contain the basic metadata', function() {
@@ -79,6 +76,22 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok(log.stdout.includes('npx flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
 });
 
+When<TestWorld>('I look at the suite #{int}', function(suiteIdx) {
+  this.suite = (this.suite ?? this.reportResult?.report)?.suites?.[suiteIdx - 1];
+});
+
+When<TestWorld>('I look at the test #{int}', function(testIdx) {
+  this.test = this.suite?.tests?.[testIdx - 1];
+});
+
+When<TestWorld>('I look at the attempt #{int}', function(attemptIdx) {
+  this.attempt = this.test?.attempts[attemptIdx - 1]
+});
+
+When<TestWorld>('I look at the step #{int}', function(stepIdx) {
+  this.step = this.attempt?.steps?.[stepIdx - 1];
+});
+
 Then<TestWorld>('the suite contains {int} test(s)', function(expectedTests: number) {
   assertCount(this.suite?.tests, expectedTests);
 });
@@ -87,7 +100,15 @@ Then<TestWorld>('the test contains {int} attempt(s)', function(expectedAttempts:
   assertCount(this.test?.attempts, expectedAttempts);
 });
 
-Then<TestWorld>('attempt #{int} {word}', function(attemptIdx, status) {
+Then<TestWorld>('the attempt contains {int} step(s)', function(epxectedSteps: number) {
+  assertCount(this.attempt?.steps, epxectedSteps);
+});
+
+Then<TestWorld>('the step contains {int} steps(s)', function(expectedSteps: number) {
+  assertCount(this.step?.steps, expectedSteps);
+});
+
+Then<TestWorld>('attempt #{int} is {string}', function(attemptIdx, status) {
   assert.equal(this.test?.attempts[attemptIdx - 1]?.status ?? 'passed', status);
 });
 
@@ -97,4 +118,8 @@ Then<TestWorld>('the suite is called {string}', function(title) {
 
 Then<TestWorld>('the test is called {string}', function(title) {
   assert.equal(this.test?.title, title);
+});
+
+Then<TestWorld>('the step is called {string}', function(title) {
+  assert.equal(this.step?.title, title);
 });

@@ -25,5 +25,5 @@ Feature: Basic Functionality
 
     When I look at the test #1
     Then the test contains 2 attempts
-    And attempt #1 failed
-    And attempt #2 passed
+    And attempt #1 is "failed"
+    And attempt #2 is "passed"
