@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { pathToFileURL } from 'node:url';
 
 export type TestWorld = IWorld & {
   reportResult?: GenerateFlakinessReportResult,
@@ -51,6 +52,7 @@ export const ARTIFACTS_DIR = process.platform === 'darwin'
 const PROJECT_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const CUCUMBER_BIN = path.join(PROJECT_ROOT, 'node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js');
 const FORMATTER_PATH = path.join(PROJECT_ROOT, 'lib', 'formatter.js');
+const FORMATTER_DESCRIPTOR = JSON.stringify(pathToFileURL(FORMATTER_PATH).href);
 const NODE_MODULES_PATH = path.join(PROJECT_ROOT, 'node_modules');
 
 const CLEARED_CI_ENV: Record<string, undefined> = {
@@ -95,7 +97,7 @@ function runSampleProject(name: string, files: ProjectFiles, options: ProjectRun
       'features/support/**/*.js',
       ...(options.args ?? []),
       '--format',
-      FORMATTER_PATH,
+      FORMATTER_DESCRIPTOR,
       ...formatOptionsArgs(options.formatOptions),
     ],
     {
