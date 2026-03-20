@@ -1,6 +1,10 @@
 {
   "name": "@flakiness/cucumberjs",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flakiness/cucumberjs.git"
+  },
   "description": "",
   "exports": {
     ".": {
