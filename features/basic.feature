@@ -20,7 +20,7 @@ Feature: Basic Functionality
          `- suite Passing Test Suite
             `- test it passes
                `- attempt #1 passed
-                  `- step a passing step
+                  `- step Given a passing step
       """
 
     When I look at the test named "it passes"

@@ -39,7 +39,7 @@ Feature: Data Tables
     When I look at the attempt #1
     Then the attempt contains 3 steps:
       """
-      a table
-      I add the values
-      I get the expected results
+      Given a table
+      When I add the values
+      Then I get the expected results
       """

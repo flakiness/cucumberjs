@@ -25,7 +25,7 @@ Feature: Unnamed Hooks
     And the step is in file "features/support/steps.js" at line 2
 
     When I look at the step #2
-    Then the step is called "a passing step"
+    Then the step is called "Given a passing step"
     And the step is in file "features/passing.feature" at line 3
 
     When I look at the step #3

@@ -27,7 +27,7 @@ Feature: Locations
     Then the attempt contains 2 steps:
       """
       Before
-      a passing step
+      Given a passing step
       """
 
     When I look at the step #1

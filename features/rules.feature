@@ -21,5 +21,5 @@ Feature: Rules
             `- suite Balance cannot go negative
                `- test rejects overspending
                   `- attempt #1 passed
-                     `- step an account with a balance
+                     `- step Given an account with a balance
       """

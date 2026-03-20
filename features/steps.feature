@@ -18,7 +18,7 @@ Feature: Steps
     When I look at the attempt #1
     And the attempt contains 1 step:
       """
-      a passing step
+      Given a passing step
       """
     When I look at the step #1
     And the step is in file "features/passing.feature" at line 3

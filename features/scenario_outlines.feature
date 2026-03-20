@@ -39,9 +39,9 @@ Feature: Scenario Outlines
     When I look at the attempt #1
     Then the attempt contains 3 steps:
       """
-      a calculator
-      I add 2 to 2
-      I get 4
+      Given a calculator
+      When I add 2 to 2
+      Then I get 4
       """
 
     When I look at the test named "addition [a=1, b=7, result=8]"
@@ -51,7 +51,7 @@ Feature: Scenario Outlines
     When I look at the attempt #1
     Then the attempt contains 3 steps:
       """
-      a calculator
-      I add 1 to 7
-      I get 8
+      Given a calculator
+      When I add 1 to 7
+      Then I get 8
       """

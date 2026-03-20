@@ -435,7 +435,7 @@ function createLineAndUriLocation(worktree: GitWorktree, cwd: string, location: 
 
 function toFKStepTitle(step: ParsedTestStep): string {
   return step.text
-    ? step.text
+    ? `${step.keyword}${step.text}`.trim()
     : step.name
       ? `${step.keyword} (${step.name})`
       : step.keyword;

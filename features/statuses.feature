@@ -36,7 +36,7 @@ Feature: Statuses
     And the attempt error #1 has message "Step is pending"
     And the attempt contains 1 step:
       """
-      a pending step
+      Given a pending step
       """
     When I look at the step #1
     Then the step has an error with message "Step is pending"
@@ -49,7 +49,7 @@ Feature: Statuses
     And the attempt error #1 has message containing "Multiple step definitions match:"
     And the attempt contains 1 step:
       """
-      an ambiguous step
+      Given an ambiguous step
       """
     When I look at the step #1
     Then the step has an error with message containing "Multiple step definitions match:"
@@ -63,7 +63,7 @@ Feature: Statuses
     And the attempt error #1 has a snippet containing "an undefined step"
     And the attempt contains 1 step:
       """
-      an undefined step
+      Given an undefined step
       """
     When I look at the step #1
     Then the step has an error with message "Undefined step"

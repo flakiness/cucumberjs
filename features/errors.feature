@@ -24,5 +24,5 @@ Feature: Errors
 
     # Make sure the same error exists in step too
     Then the attempt contains 1 step
-    When I look at the step named "a step that throws an error"
+    When I look at the step named "Given a step that throws an error"
     And the step has an error with message "intentional failure"

@@ -32,7 +32,7 @@ Feature: Multiple Scenario Outline Examples
     When I look at the attempt #1
     Then the attempt contains 1 step:
       """
-      the subtotal is 1 and tax is 2 and the total is 3
+      Given the subtotal is 1 and tax is 2 and the total is 3
       """
 
     When I look at the test named "totals [subtotal=2, tax=2, total=4]"
