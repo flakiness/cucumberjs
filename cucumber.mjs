@@ -1,7 +1,7 @@
 export default {
   paths: ['features/**/*.feature'],
   import: ['tsx/esm', 'features/support/**/*.ts'],
-  format: ['progress', ['@flakiness/cucumberjs', '.flakiness/cucumber-formatter.log']],
+  format: ['@flakiness/cucumberjs', 'progress'],
   formatOptions: {
     flakinessProject: 'flakiness/cucumberjs',
   },
