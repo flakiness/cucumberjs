@@ -27,6 +27,7 @@ import {
   uploadReport,
   writeReport
 } from '@flakiness/sdk';
+import fs from 'node:fs';
 import path from 'node:path';
 
 type FormatterConfig = {
@@ -269,7 +270,7 @@ function parseFormatterConfig(parsedArgvOptions: IFormatterOptions['parsedArgvOp
 
 function createLocation(worktree: GitWorktree, cwd: string, relativeFile: string, location: Location): FK.Location {
   return {
-    file: worktree.gitPath(path.resolve(cwd, relativeFile)),
+    file: worktree.gitPath(canonicalizeAbsolutePath(path.resolve(cwd, relativeFile))),
     line: location.line as FK.Number1Based,
     column: (location.column ?? 1) as FK.Number1Based,
   };
@@ -490,10 +491,22 @@ function toDurationMS(timestamp: Duration): FK.DurationMS {
 
 function createLineAndUriLocation(worktree: GitWorktree, cwd: string, location: LineAndUri): FK.Location {
   return {
-    file: worktree.gitPath(path.resolve(cwd, location.uri)),
+    file: worktree.gitPath(canonicalizeAbsolutePath(path.resolve(cwd, location.uri))),
     line: location.line as FK.Number1Based,
     column: 1 as FK.Number1Based,
   };
+}
+
+function canonicalizeAbsolutePath(absolutePath: string): string {
+  try {
+    // On Windows the same directory may be spelled in multiple ways, for example
+    // `C:\Users\runneradmin\...` vs `C:\Users\RUNNER~1\...`. GitWorktree.gitPath()
+    // is purely string-based, so without canonicalization it can think the file is
+    // outside the repo and produce paths like `../../../../RUNNER~1/...`.
+    return fs.realpathSync.native(absolutePath);
+  } catch {
+    return absolutePath;
+  }
 }
 
 function toFKStepTitle(step: ParsedTestStep): string {
