@@ -53,6 +53,18 @@ const CUCUMBER_BIN = path.join(PROJECT_ROOT, 'node_modules', '@cucumber', 'cucum
 const FORMATTER_PATH = path.join(PROJECT_ROOT, 'lib', 'formatter.js');
 const NODE_MODULES_PATH = path.join(PROJECT_ROOT, 'node_modules');
 
+const CLEARED_CI_ENV: Record<string, undefined> = {
+  BUILD_BUILDID: undefined,
+  BUILD_URL: undefined,
+  CI_JOB_URL: undefined,
+  GITHUB_REPOSITORY: undefined,
+  GITHUB_RUN_ATTEMPT: undefined,
+  GITHUB_RUN_ID: undefined,
+  GITHUB_SERVER_URL: undefined,
+  SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: undefined,
+  SYSTEM_TEAMPROJECT: undefined,
+};
+
 const DEFAULT_FILES: ProjectFiles = {
   'package.json': JSON.stringify({
     name: 'sample-cucumber-project',
@@ -91,8 +103,9 @@ function runSampleProject(name: string, files: ProjectFiles, options: ProjectRun
       encoding: 'utf8',
       env: {
         ...process.env,
-        ...options.env,
+        ...CLEARED_CI_ENV,
         NODE_PATH: [NODE_MODULES_PATH, process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+        ...options.env,
       },
     },
   );
