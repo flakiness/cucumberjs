@@ -455,24 +455,25 @@ function extractErrorFromStep(
     return undefined;
   }
 
-  const message = step.result.exception?.message ?? step.result.message;
-  const stack = step.result.exception?.stackTrace;
-  const value = !message && step.result.exception?.type ? step.result.exception.type : undefined;
+  const message = step.result.exception?.message
+    ?? step.result.message
+    ?? (status === TestStepResultStatus.PENDING
+      ? 'Step is pending'
+      : status === TestStepResultStatus.UNDEFINED
+        ? 'Undefined step'
+        : undefined);
   const location = step.sourceLocation
     ? createLineAndUriLocation(worktree, cwd, step.sourceLocation)
     : step.actionLocation
       ? createLineAndUriLocation(worktree, cwd, step.actionLocation)
       : undefined;
 
-  if (!message && !stack && !value)
-    return undefined;
-
-  return {
+  return message ? {
     location,
     message,
-    stack,
-    value,
-  };
+    stack: step.result.exception?.stackTrace,
+    snippet: step.snippet,
+  } : undefined;
 }
 
 function extractSTDIOFromTestSteps(
