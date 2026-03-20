@@ -1,0 +1,1 @@
+[![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fflakiness.io%2Fapi%2Fbadge%3Finput%3D%257B%2522badgeToken%2522%253A%2522badge-2XD99RoRXgOvFfVcxVMJ0l%2522%257D)](https://flakiness.io/flakiness/cucumberjs)
