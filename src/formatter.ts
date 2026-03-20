@@ -180,6 +180,7 @@ To open last Flakiness report, run:
     const suitesByKey = new Map<string, FK.Suite>();
     const testsById = new Map<string, FK.Test>();
     const attachments = new Map<FK.AttachmentId, ReportDataAttachment>();
+    const parallelIndexByWorkerId = new Map<string, number>();
 
     for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
       const attemptData = this.eventDataCollector.getTestCaseAttempt(testCaseStartedId);
@@ -225,11 +226,23 @@ To open last Flakiness report, run:
         .filter((error): error is FK.ReportError => !!error);
       const stdio = extractSTDIOFromTestSteps(parsedAttempt.testSteps, startTimestamp);
 
+      let parallelIndex: number|undefined;
+      if (testCaseStarted.workerId) {
+        parallelIndex = parallelIndexByWorkerId.get(testCaseStarted.workerId);
+        if (parallelIndex === undefined) {
+          // Cucumber exposes an opaque workerId string, so we assign stable dense
+          // indexes based on the first time each worker is observed.
+          parallelIndex = parallelIndexByWorkerId.size;
+          parallelIndexByWorkerId.set(testCaseStarted.workerId, parallelIndex);
+        }
+      }
+
       test.attempts.push({
         environmentIdx: 0,
         startTimestamp,
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
+        parallelIndex,
         annotations: extractAttemptAnnotations(worktree, this.cwd, featureUri, attemptData.gherkinDocument, attemptData.pickle),
         errors: errors.length ? errors : undefined,
         attachments: await extractAttachmentsFromTestSteps(parsedAttempt.testSteps, attachments),

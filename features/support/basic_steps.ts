@@ -119,12 +119,42 @@ Then<TestWorld>('the attempt contains {int} step(s):', function(expectedSteps: n
   );
 });
 
+Then<TestWorld>('every attempt has a parallel index', function() {
+  const attempts = collectAttempts(this.reportResult?.report?.suites ?? []);
+  assert.ok(attempts.length > 0, 'Expected the report to contain at least one attempt');
+  for (const [index, attempt] of attempts.entries())
+    assert.notEqual(attempt.parallelIndex, undefined, `Expected attempt #${index + 1} to have a parallel index`);
+});
+
+Then<TestWorld>('the report contains {int} distinct parallel index(es)', function(expectedIndexes: number) {
+  assert.equal(collectDistinctParallelIndexes(this.reportResult?.report?.suites ?? []).length, expectedIndexes);
+});
+
+Then<TestWorld>('the report parallel indexes are in range {int} to {int}', function(minIndex: number, maxIndex: number) {
+  const attempts = collectAttempts(this.reportResult?.report?.suites ?? []);
+  assert.ok(attempts.length > 0, 'Expected the report to contain at least one attempt');
+  for (const [index, attempt] of attempts.entries()) {
+    assert.notEqual(attempt.parallelIndex, undefined, `Expected attempt #${index + 1} to have a parallel index`);
+    assert.ok(
+      attempt.parallelIndex! >= minIndex && attempt.parallelIndex! <= maxIndex,
+      `Expected attempt #${index + 1} to have parallel index in range ${minIndex}..${maxIndex}, got ${attempt.parallelIndex}`,
+    );
+  }
+});
+
 Then<TestWorld>('the step contains {int} steps(s)', function(expectedSteps: number) {
   assertCount(this.step?.steps, expectedSteps);
 });
 
 Then<TestWorld>('attempt #{int} is {string}', function(attemptIdx, status) {
   assert.equal(this.test?.attempts[attemptIdx - 1]?.status ?? 'passed', status);
+});
+
+Then<TestWorld>('attempt #{int} and attempt #{int} have the same parallel index', function(firstAttemptIdx: number, secondAttemptIdx: number) {
+  assert.equal(
+    this.test?.attempts[firstAttemptIdx - 1]?.parallelIndex,
+    this.test?.attempts[secondAttemptIdx - 1]?.parallelIndex,
+  );
 });
 
 Then<TestWorld>('the suite is called {string}', function(title) {
@@ -164,6 +194,14 @@ function collectSuites(suites: FK.Suite[]): FK.Suite[] {
 
 function collectTests(suites: FK.Suite[]): FK.Test[] {
   return suites.flatMap(suite => [...(suite.tests ?? []), ...collectTests(suite.suites ?? [])]);
+}
+
+function collectAttempts(suites: FK.Suite[]): FK.RunAttempt[] {
+  return collectTests(suites).flatMap(test => test.attempts);
+}
+
+function collectDistinctParallelIndexes(suites: FK.Suite[]): number[] {
+  return Array.from(new Set(collectAttempts(suites).flatMap(attempt => attempt.parallelIndex === undefined ? [] : [attempt.parallelIndex]))).sort((a, b) => a - b);
 }
 
 function findUnique<T>(elements: T[], predicate: (element: T) => boolean, description: string): T {
