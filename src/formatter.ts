@@ -4,10 +4,12 @@ import type {
   Attachment as CucumberAttachment,
   Duration,
   Envelope,
+  Feature,
   GherkinDocument,
   Location,
   Pickle,
   Rule,
+  Scenario,
   TestCaseFinished,
   TestCaseStarted,
   TestRunFinished,
@@ -227,6 +229,7 @@ To open last Flakiness report, run:
         startTimestamp,
         duration: Math.max(0, finishTimestamp - startTimestamp) as FK.DurationMS,
         status: toFKStatus(attemptData.worstTestStepResult.status),
+        annotations: extractAttemptAnnotations(worktree, this.cwd, featureUri, attemptData.gherkinDocument, attemptData.pickle),
         errors: errors.length ? errors : undefined,
         attachments: await extractAttachmentsFromTestSteps(parsedAttempt.testSteps, attachments),
         stdio: stdio.length ? stdio : undefined,
@@ -345,6 +348,40 @@ function getOrCreateRuleSuite(
   return suite;
 }
 
+function extractAttemptAnnotations(
+  worktree: GitWorktree,
+  cwd: string,
+  featureUri: string,
+  gherkinDocument: GherkinDocument,
+  pickle: Pickle,
+): FK.Annotation[] | undefined {
+  const annotations = [
+    createDescriptionAnnotation('feature', worktree, cwd, featureUri, gherkinDocument.feature),
+    createDescriptionAnnotation('rule', worktree, cwd, featureUri, findRuleForPickle(gherkinDocument, pickle)),
+    createDescriptionAnnotation('scenario', worktree, cwd, featureUri, findScenarioForPickle(gherkinDocument, pickle)),
+  ].filter((annotation): annotation is FK.Annotation => !!annotation);
+
+  return annotations.length ? annotations : undefined;
+}
+
+function createDescriptionAnnotation(
+  type: string,
+  worktree: GitWorktree,
+  cwd: string,
+  featureUri: string,
+  node: { description: string, location: Location } | undefined,
+): FK.Annotation | undefined {
+  const description = normalizeDescription(node?.description);
+  if (!description || !node)
+    return undefined;
+
+  return {
+    type,
+    description,
+    location: createLocation(worktree, cwd, featureUri, node.location),
+  };
+}
+
 function findRuleForPickle(gherkinDocument: GherkinDocument, pickle: Pickle): Rule | undefined {
   const astNodeIds = new Set(pickle.astNodeIds);
   for (const child of gherkinDocument.feature?.children ?? []) {
@@ -355,6 +392,11 @@ function findRuleForPickle(gherkinDocument: GherkinDocument, pickle: Pickle): Ru
       return child.rule;
   }
   return undefined;
+}
+
+function findScenarioForPickle(gherkinDocument: GherkinDocument, pickle: Pickle): Scenario | undefined {
+  const astNodeIds = new Set(pickle.astNodeIds);
+  return collectScenarios(gherkinDocument.feature).find(scenario => astNodeIds.has(scenario.id));
 }
 
 function toFKTestTitle(gherkinDocument: GherkinDocument, pickle: Pickle): string {
@@ -378,14 +420,7 @@ function extractScenarioOutlineValues(gherkinDocument: GherkinDocument, pickle: 
   // The last nodeId is the selected example row.
   const exampleRowId = pickle.astNodeIds[pickle.astNodeIds.length - 1];
 
-  // Scenarios might be either under feature, or under feature rules.
-  const scenarios = (gherkinDocument.feature?.children ?? []).flatMap(child => {
-    if (child.rule)
-      return child.rule.children.flatMap(ruleChild => ruleChild.scenario ? [ruleChild.scenario] : []);
-    return child.scenario ? [child.scenario] : [];
-  });
-
-  for (const scenario of scenarios) {
+  for (const scenario of collectScenarios(gherkinDocument.feature)) {
     for (const examples of scenario.examples) {
       const row = examples.tableBody.find(row => row.id === exampleRowId);
       if (!row)
@@ -397,6 +432,34 @@ function extractScenarioOutlineValues(gherkinDocument: GherkinDocument, pickle: 
   }
 
   return undefined;
+}
+
+function collectScenarios(feature: Feature | undefined): Scenario[] {
+  return (feature?.children ?? []).flatMap(child => {
+    if (child.rule)
+      return child.rule.children.flatMap(ruleChild => ruleChild.scenario ? [ruleChild.scenario] : []);
+    return child.scenario ? [child.scenario] : [];
+  });
+}
+
+function normalizeDescription(description: string | undefined): string | undefined {
+  const value = description?.trim();
+  if (!value)
+    return undefined;
+
+  const lines = value.split('\n');
+  const commonIndent = lines
+    .slice(1)
+    .filter(line => line.trim())
+    .reduce((indent, line) => Math.min(indent, line.match(/^ */)?.[0].length ?? 0), Number.POSITIVE_INFINITY);
+
+  if (!Number.isFinite(commonIndent) || commonIndent === 0)
+    return value;
+
+  return [
+    lines[0]!,
+    ...lines.slice(1).map(line => line.slice(commonIndent)),
+  ].join('\n');
 }
 
 function toFKStatus(status: TestStepResultStatus | undefined): FK.TestStatus {
