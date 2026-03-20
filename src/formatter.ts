@@ -7,6 +7,7 @@ import type {
   GherkinDocument,
   Location,
   Pickle,
+  Rule,
   TestCaseFinished,
   TestCaseStarted,
   TestRunFinished,
@@ -173,8 +174,8 @@ To open last Flakiness report, run:
     attachments: ReportDataAttachment[],
     suites: FK.Suite[],
   }> {
-    const uriToFile = new Map<string, FK.Suite>();
-    const uriToTests = new Map<string, Map<string, FK.Test>>();
+    const suitesByKey = new Map<string, FK.Suite>();
+    const testsById = new Map<string, FK.Test>();
     const attachments = new Map<FK.AttachmentId, ReportDataAttachment>();
 
     for (const [testCaseStartedId, testCaseStarted] of this._testCaseStartedById) {
@@ -185,26 +186,20 @@ To open last Flakiness report, run:
         supportCodeLibrary: this.supportCodeLibrary,
       });
       const featureUri = attemptData.pickle.uri;
-      let fileSuite = uriToFile.get(featureUri);
-      if (!fileSuite) {
-        fileSuite = {
-          type: 'file',
-          title: path.basename(featureUri),
-          location: createLocation(worktree, this.cwd, featureUri, { line: 0, column: 0 }),
-          suites: [{
-            type: 'suite',
-            title: attemptData.gherkinDocument.feature?.name ?? '',
-            location: attemptData.gherkinDocument.feature?.location
-              ? createLocation(worktree, this.cwd, featureUri, attemptData.gherkinDocument.feature?.location)
-              : undefined,
-            tests: [],
-          }],
-        };
-        uriToFile.set(featureUri, fileSuite);
-        uriToTests.set(featureUri, new Map());
-      }
+      const fileSuite = getOrCreateFileSuite(suitesByKey, worktree, this.cwd, featureUri);
+      const featureSuite = getOrCreateFeatureSuite(
+        suitesByKey,
+        fileSuite,
+        worktree,
+        this.cwd,
+        featureUri,
+        attemptData.gherkinDocument,
+      );
+      const rule = findRuleForPickle(attemptData.gherkinDocument, attemptData.pickle);
+      const parentSuite = rule
+        ? getOrCreateRuleSuite(suitesByKey, featureSuite, worktree, this.cwd, featureUri, rule)
+        : featureSuite;
 
-      const testsById = uriToTests.get(featureUri)!;
       let test = testsById.get(attemptData.testCase.id);
       if (!test) {
         test = {
@@ -216,7 +211,7 @@ To open last Flakiness report, run:
           attempts: [],
         };
         testsById.set(attemptData.testCase.id, test);
-        fileSuite.suites![0].tests!.push(test);
+        parentSuite.tests!.push(test);
       }
 
       const testCaseFinished = this._testCaseFinishedById.get(testCaseStartedId);
@@ -250,7 +245,7 @@ To open last Flakiness report, run:
 
     return {
       attachments: Array.from(attachments.values()),
-      suites: Array.from(uriToFile.values()),
+      suites: Array.from(suitesByKey.values()).filter(suite => suite.type === 'file'),
     };
   }
 }
@@ -279,6 +274,87 @@ function createLocation(worktree: GitWorktree, cwd: string, relativeFile: string
 
 function stripTagPrefix(tag: string): string {
   return tag.startsWith('@') ? tag.slice(1) : tag;
+}
+
+function getOrCreateFileSuite(
+  suitesByKey: Map<string, FK.Suite>,
+  worktree: GitWorktree,
+  cwd: string,
+  featureUri: string,
+): FK.Suite {
+  const key = `file:${featureUri}`;
+  let suite = suitesByKey.get(key);
+  if (!suite) {
+    suite = {
+      type: 'file',
+      title: path.basename(featureUri),
+      location: createLocation(worktree, cwd, featureUri, { line: 0, column: 0 }),
+      suites: [],
+    };
+    suitesByKey.set(key, suite);
+  }
+  return suite;
+}
+
+function getOrCreateFeatureSuite(
+  suitesByKey: Map<string, FK.Suite>,
+  fileSuite: FK.Suite,
+  worktree: GitWorktree,
+  cwd: string,
+  featureUri: string,
+  gherkinDocument: GherkinDocument,
+): FK.Suite {
+  const key = `feature:${featureUri}`;
+  let suite = suitesByKey.get(key);
+  if (!suite) {
+    suite = {
+      type: 'suite',
+      title: gherkinDocument.feature?.name ?? '',
+      location: gherkinDocument.feature?.location
+        ? createLocation(worktree, cwd, featureUri, gherkinDocument.feature.location)
+        : undefined,
+      suites: [],
+      tests: [],
+    };
+    suitesByKey.set(key, suite);
+    fileSuite.suites!.push(suite);
+  }
+  return suite;
+}
+
+function getOrCreateRuleSuite(
+  suitesByKey: Map<string, FK.Suite>,
+  featureSuite: FK.Suite,
+  worktree: GitWorktree,
+  cwd: string,
+  featureUri: string,
+  rule: Rule,
+): FK.Suite {
+  const key = `rule:${featureUri}:${rule.id}`;
+  let suite = suitesByKey.get(key);
+  if (!suite) {
+    suite = {
+      type: 'suite',
+      title: rule.name,
+      location: createLocation(worktree, cwd, featureUri, rule.location),
+      tests: [],
+    };
+    suitesByKey.set(key, suite);
+    featureSuite.suites!.push(suite);
+  }
+  return suite;
+}
+
+function findRuleForPickle(gherkinDocument: GherkinDocument, pickle: Pickle): Rule | undefined {
+  const astNodeIds = new Set(pickle.astNodeIds);
+  for (const child of gherkinDocument.feature?.children ?? []) {
+    if (!child.rule)
+      continue;
+    const hasScenario = child.rule.children.some(ruleChild => ruleChild.scenario && astNodeIds.has(ruleChild.scenario.id));
+    if (hasScenario)
+      return child.rule;
+  }
+  return undefined;
 }
 
 function toFKTestTitle(gherkinDocument: GherkinDocument, pickle: Pickle): string {
