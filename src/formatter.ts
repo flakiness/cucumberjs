@@ -30,7 +30,6 @@ import {
 } from '@flakiness/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
-import * as nodeUtil from 'node:util';
 
 type FormatterConfig = {
   disableUpload?: boolean,
@@ -47,10 +46,8 @@ type LineAndUri = {
 
 type ParsedTestStep = ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number];
 type ReportDataAttachment = Awaited<ReturnType<typeof ReportUtils.createDataAttachment>>;
-type StyleTextFormat = Parameters<NonNullable<typeof nodeUtil.styleText>>[0];
 
 const CUCUMBER_LOG_MEDIA_TYPE = 'text/x.cucumber.log+plain';
-const styleText = (format: StyleTextFormat, text: string) => nodeUtil.styleText?.(format, text) ?? text;
 
 export default class FlakinessCucumberFormatter extends Formatter {
   static documentation = 'Generates a Flakiness report for a CucumberJS run.';
@@ -172,7 +169,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this.log(`
 To open last Flakiness report, run:
 
-  ${styleText('cyan', command)}
+  ${command}
 `);
   }
 
