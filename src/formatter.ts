@@ -24,11 +24,13 @@ import {
   GitWorktree,
   RAMUtilization,
   ReportUtils,
+  showReportCommand,
   uploadReport,
   writeReport
 } from '@flakiness/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
+import * as nodeUtil from 'node:util';
 
 type FormatterConfig = {
   disableUpload?: boolean,
@@ -45,8 +47,10 @@ type LineAndUri = {
 
 type ParsedTestStep = ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['testSteps'][number];
 type ReportDataAttachment = Awaited<ReturnType<typeof ReportUtils.createDataAttachment>>;
+type StyleTextFormat = Parameters<NonNullable<typeof nodeUtil.styleText>>[0];
 
 const CUCUMBER_LOG_MEDIA_TYPE = 'text/x.cucumber.log+plain';
+const styleText = (format: StyleTextFormat, text: string) => nodeUtil.styleText?.(format, text) ?? text;
 
 export default class FlakinessCucumberFormatter extends Formatter {
   static documentation = 'Generates a Flakiness report for a CucumberJS run.';
@@ -164,12 +168,11 @@ export default class FlakinessCucumberFormatter extends Formatter {
       });
     }
 
-    const defaultOutputFolder = path.join(this.cwd, 'flakiness-report');
-    const folder = defaultOutputFolder === this._outputFolder ? '' : path.relative(this.cwd, this._outputFolder);
+    const command = showReportCommand(this._outputFolder);
     this.log(`
 To open last Flakiness report, run:
 
-  npx flakiness show ${folder}
+  ${styleText('cyan', command)}
 `);
   }
 

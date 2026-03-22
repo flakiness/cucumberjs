@@ -28,7 +28,7 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok((report.ram?.length ?? 0) > 0, 'Expected ram telemetry to be populated');
 
   assert.equal(log.stderr, '', `Expected stderr to be empty.\n\nSTDERR:\n${log.stderr}`);
-  assert.ok(log.stdout.includes('npx flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
+  assert.ok(log.stdout.includes('flakiness show'), `Expected report hint in stdout.\n\nSTDOUT:\n${log.stdout}`);
 });
 
 When<TestWorld>('I look at the suite named {string}', function(title: string) {
