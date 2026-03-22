@@ -26,7 +26,7 @@
   "type": "module",
   "dependencies": {
     "@flakiness/flakiness-report": "^0.28.0",
-    "@flakiness/sdk": "^2.2.2"
+    "@flakiness/sdk": "^2.4.0"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.7.0",

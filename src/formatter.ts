@@ -24,6 +24,7 @@ import {
   GitWorktree,
   RAMUtilization,
   ReportUtils,
+  showReportCommand,
   uploadReport,
   writeReport
 } from '@flakiness/sdk';
@@ -164,12 +165,11 @@ export default class FlakinessCucumberFormatter extends Formatter {
       });
     }
 
-    const defaultOutputFolder = path.join(this.cwd, 'flakiness-report');
-    const folder = defaultOutputFolder === this._outputFolder ? '' : path.relative(this.cwd, this._outputFolder);
+    const command = showReportCommand(this._outputFolder);
     this.log(`
 To open last Flakiness report, run:
 
-  npx flakiness show ${folder}
+  ${command}
 `);
   }
 
