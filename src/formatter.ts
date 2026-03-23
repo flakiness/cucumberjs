@@ -161,6 +161,12 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this._ramUtilization.enrich(report);
 
     await writeReport(report, attachments, this._outputFolder);
+    const command = showReportCommand(this._outputFolder);
+    console.error(`
+To open last Flakiness report, run:
+
+  ${command}
+`);
 
     const disableUpload = this._config.disableUpload ?? envBool('FLAKINESS_DISABLE_UPLOAD');
     if (!disableUpload) {
@@ -170,13 +176,6 @@ export default class FlakinessCucumberFormatter extends Formatter {
         logger: STDERR_LOGGER,
       });
     }
-
-    const command = showReportCommand(this._outputFolder);
-    this.log(`
-To open last Flakiness report, run:
-
-  ${command}
-`);
   }
 
   private async _collectSuites(worktree: GitWorktree): Promise<{
