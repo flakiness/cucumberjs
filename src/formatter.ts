@@ -48,6 +48,11 @@ type ParsedTestStep = ReturnType<typeof formatterHelpers.parseTestCaseAttempt>['
 type ReportDataAttachment = Awaited<ReturnType<typeof ReportUtils.createDataAttachment>>;
 
 const CUCUMBER_LOG_MEDIA_TYPE = 'text/x.cucumber.log+plain';
+const STDERR_LOGGER = {
+  log: (...args: unknown[]) => console.error(...args),
+  warn: (...args: unknown[]) => console.error(...args),
+  error: (...args: unknown[]) => console.error(...args),
+};
 
 export default class FlakinessCucumberFormatter extends Formatter {
   static documentation = 'Generates a Flakiness report for a CucumberJS run.';
@@ -162,6 +167,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
       await uploadReport(report, attachments, {
         flakinessAccessToken: this._config.token,
         flakinessEndpoint: this._config.endpoint,
+        logger: STDERR_LOGGER,
       });
     }
 

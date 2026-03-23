@@ -55,7 +55,10 @@ Add the formatter to your `cucumber.mjs`:
 export default {
   paths: ['features/**/*.feature'],
   import: ['features/support/**/*.ts'],
-  format: ['@flakiness/cucumberjs', 'progress'],
+  format: [
+    'progress',
+    ['@flakiness/cucumberjs', '.flakiness/cucumber-formatter.log'],
+  ],
   formatOptions: {
     flakinessProject: 'my-org/my-project',
   },
@@ -82,6 +85,8 @@ Reports are automatically uploaded to Flakiness.io after test completion. Authen
 - **GitHub OIDC**: When running in GitHub Actions, the formatter can authenticate using GitHub's OIDC token — no access token needed. See [GitHub Actions integration](https://docs.flakiness.io/ci/github-actions/) for setup instructions.
 
 If upload fails, the report is still available locally in the output folder.
+
+If you combine this formatter with a progress formatter, keep the progress formatter on `stdout` and redirect `@flakiness/cucumberjs` to a file as shown above. Upload status messages are printed to `stderr`, so the uploaded report URL stays visible in the terminal.
 
 ## Viewing Reports
 
@@ -189,7 +194,10 @@ Here's a complete example with all options:
 export default {
   paths: ['features/**/*.feature'],
   import: ['features/support/**/*.ts'],
-  format: ['@flakiness/cucumberjs', 'progress'],
+  format: [
+    'progress',
+    ['@flakiness/cucumberjs', '.flakiness/cucumber-formatter.log'],
+  ],
   formatOptions: {
     flakinessProject: 'my-org/my-project',
     endpoint: process.env.FLAKINESS_ENDPOINT,
