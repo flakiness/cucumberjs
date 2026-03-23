@@ -22,8 +22,8 @@ importers:
         specifier: ^32.2.0
         version: 32.2.0
       '@flakiness/cucumberjs':
-        specifier: 1.0.1
-        version: 1.0.1(zod@4.3.6)
+        specifier: 1.1.1
+        version: 1.1.1(zod@4.3.6)
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0
@@ -282,8 +282,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@flakiness/cucumberjs@1.0.1':
-    resolution: {integrity: sha512-cgLsIsoo7SDZb49PcWCe4P9QBL7dkF2wmU4PPiHNzLb2eoLMtXNw2sel4fIL8UiGV3eo8HW+j+COFwl08Iw+EA==}
+  '@flakiness/cucumberjs@1.1.1':
+    resolution: {integrity: sha512-/h+LlKMT3NdeCZK/tIWA+9Rt2te7hi7EgOcqh6/ttpiDo7jSHX4X7J3inE7myCn5mEohI08jOdrJxoNLKs+UGg==}
 
   '@flakiness/flakiness-report@0.28.0':
     resolution: {integrity: sha512-PMQad8YgfYcdNYbLDKDdXABynf50LasI9Qfu9EWLOnZVb6d4Ey2Hb387dR8F8YR8wNp5XxP4P9pcZ8ShYSTvKg==}
@@ -1358,7 +1358,7 @@ snapshots:
   '@esbuild/win32-x64@0.27.4':
     optional: true
 
-  '@flakiness/cucumberjs@1.0.1(zod@4.3.6)':
+  '@flakiness/cucumberjs@1.1.1(zod@4.3.6)':
     dependencies:
       '@flakiness/flakiness-report': 0.28.0(zod@4.3.6)
       '@flakiness/sdk': 2.4.0(@flakiness/flakiness-report@0.28.0(zod@4.3.6))
