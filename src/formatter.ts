@@ -36,6 +36,7 @@ type FormatterConfig = {
   endpoint?: string,
   flakinessProject?: string,
   outputFolder?: string,
+  title?: string,
   token?: string,
 };
 
@@ -142,6 +143,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
 
     const { attachments, suites } = await this._collectSuites(worktree);
 
+    const title = this._config.title ?? process.env.FLAKINESS_TITLE ?? CIUtils.runTitle();
     const report = ReportUtils.normalizeReport({
       category: 'cucumberjs',
       commitId,
@@ -152,6 +154,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
         }),
       ],
       flakinessProject: this._config.flakinessProject,
+      title,
       suites,
       startTimestamp: this._startTimestamp,
       url: CIUtils.runUrl(),
@@ -282,6 +285,7 @@ function parseFormatterConfig(parsedArgvOptions: IFormatterOptions['parsedArgvOp
     endpoint: typeof parsedArgvOptions.endpoint === 'string' ? parsedArgvOptions.endpoint : undefined,
     flakinessProject: typeof parsedArgvOptions.flakinessProject === 'string' ? parsedArgvOptions.flakinessProject : undefined,
     outputFolder: typeof parsedArgvOptions.outputFolder === 'string' ? parsedArgvOptions.outputFolder : undefined,
+    title: typeof parsedArgvOptions.title === 'string' ? parsedArgvOptions.title : undefined,
     token: typeof parsedArgvOptions.token === 'string' ? parsedArgvOptions.token : undefined,
   };
 }
