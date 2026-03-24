@@ -147,7 +147,7 @@ formatOptions: {
 
 Optional human-readable report title. Typically used to name a CI run, matrix shard, or other execution group.
 
-Defaults to the `FLAKINESS_TITLE` environment variable, or auto-detects from the CI environment if not set.
+Defaults to the `FLAKINESS_TITLE` environment variable, or empty otherwise.
 
 ```javascript
 formatOptions: {

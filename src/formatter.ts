@@ -143,7 +143,6 @@ export default class FlakinessCucumberFormatter extends Formatter {
 
     const { attachments, suites } = await this._collectSuites(worktree);
 
-    const title = this._config.title ?? process.env.FLAKINESS_TITLE ?? CIUtils.runTitle();
     const report = ReportUtils.normalizeReport({
       category: 'cucumberjs',
       commitId,
@@ -154,7 +153,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
         }),
       ],
       flakinessProject: this._config.flakinessProject,
-      title,
+      title: this._config.title ?? process.env.FLAKINESS_TITLE,
       suites,
       startTimestamp: this._startTimestamp,
       url: CIUtils.runUrl(),

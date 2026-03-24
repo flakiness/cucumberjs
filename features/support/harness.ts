@@ -63,7 +63,6 @@ const CLEARED_CI_ENV: Record<string, undefined> = {
   GITHUB_RUN_ATTEMPT: undefined,
   GITHUB_RUN_ID: undefined,
   GITHUB_SERVER_URL: undefined,
-  GITHUB_WORKFLOW: undefined,
   SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: undefined,
   SYSTEM_TEAMPROJECT: undefined,
 };
