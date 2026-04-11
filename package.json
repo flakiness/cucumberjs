@@ -25,8 +25,8 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@flakiness/flakiness-report": "^0.29.0",
-    "@flakiness/sdk": "^2.6.0"
+    "@flakiness/flakiness-report": "^0.31.0",
+    "@flakiness/sdk": "^2.7.0"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.7.0",

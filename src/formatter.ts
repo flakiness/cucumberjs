@@ -252,9 +252,9 @@ To open last Flakiness report, run:
         parallelIndex,
         annotations: extractAttemptAnnotations(worktree, this.cwd, featureUri, attemptData.gherkinDocument, attemptData.pickle),
         errors: errors.length ? errors : undefined,
-        attachments: await extractAttachmentsFromTestSteps(parsedAttempt.testSteps, attachments),
         stdio: stdio.length ? stdio : undefined,
-        steps: parsedAttempt.testSteps.map(step => ({
+        steps: await Promise.all(parsedAttempt.testSteps.map(async step => ({
+          attachments: await extractAttachmentsFromTestStep(step, attachments),
           title: toFKStepTitle(step),
           duration: toDurationMS(step.result.duration),
           error: extractErrorFromStep(worktree, this.cwd, step),
@@ -263,7 +263,7 @@ To open last Flakiness report, run:
             : step.actionLocation
               ? createLineAndUriLocation(worktree, this.cwd, step.actionLocation)
               : undefined,
-        })),
+        }))),
       });
     }
 
@@ -601,28 +601,26 @@ function extractSTDIOFromTestSteps(
   return stdio;
 }
 
-async function extractAttachmentsFromTestSteps(
-  steps: ParsedTestStep[],
+async function extractAttachmentsFromTestStep(
+  step: ParsedTestStep,
   attachments: Map<FK.AttachmentId, ReportDataAttachment>,
 ): Promise<FK.Attachment[]> {
   const fkAttachments: FK.Attachment[] = [];
 
-  for (const step of steps) {
-    for (const attachment of step.attachments) {
-      if (attachment.mediaType === CUCUMBER_LOG_MEDIA_TYPE)
-        continue;
+  for (const attachment of step.attachments) {
+    if (attachment.mediaType === CUCUMBER_LOG_MEDIA_TYPE)
+      continue;
 
-      const dataAttachment = await ReportUtils.createDataAttachment(
-        attachment.mediaType,
-        decodeAttachmentBody(attachment),
-      );
-      attachments.set(dataAttachment.id, dataAttachment);
-      fkAttachments.push({
-        id: dataAttachment.id,
-        name: attachment.fileName ?? `attachment-${fkAttachments.length + 1}`,
-        contentType: attachment.mediaType,
-      });
-    }
+    const dataAttachment = await ReportUtils.createDataAttachment(
+      attachment.mediaType,
+      decodeAttachmentBody(attachment),
+    );
+    attachments.set(dataAttachment.id, dataAttachment);
+    fkAttachments.push({
+      id: dataAttachment.id,
+      name: attachment.fileName ?? `attachment-${fkAttachments.length + 1}`,
+      contentType: attachment.mediaType,
+    });
   }
 
   return fkAttachments;

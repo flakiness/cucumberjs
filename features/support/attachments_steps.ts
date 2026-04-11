@@ -5,11 +5,11 @@ import type { TestWorld } from './harness.ts';
 import { assertCount } from './harness.ts';
 
 When<TestWorld>('I look at the attachment #{int}', function(attachmentIdx: number) {
-  this.attachment = this.attempt?.attachments?.[attachmentIdx - 1];
+  this.attachment = this.step?.attachments?.[attachmentIdx - 1];
 });
 
-Then<TestWorld>('the attempt contains {int} attachments', function(expectedAttachments: number) {
-  assertCount(this.attempt?.attachments, expectedAttachments);
+Then<TestWorld>('the step has {int} attachment(s)', function(expectedCount: number) {
+  assertCount(this.step?.attachments, expectedCount);
 });
 
 Then<TestWorld>('the report contains {int} missing attachments', function(expectedMissingAttachments: number) {
