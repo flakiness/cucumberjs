@@ -7,7 +7,7 @@ import path from 'path';
 
 const { __dirname, $ } = Task.init(import.meta, {
   name: 'cucubmer',
-  watch: [ './src' ],
+  watch: [ './src', './features' ],
 });
 
 const outDir = path.join(__dirname, 'lib');

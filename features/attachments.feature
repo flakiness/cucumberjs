@@ -15,11 +15,12 @@ Feature: Attachments
       });
       """
     When I generate the Flakiness report for "scenario with attachments"
+    And the report contains 0 missing attachments
     When I look at the test named "it attaches data"
     Then the test contains 1 attempt
     When I look at the attempt #1
-    Then the attempt contains 2 attachments
-    And the report contains 0 missing attachments
+    When I look at the step #1
+    Then the step has 2 attachments
 
     When I look at the attachment #1
     Then the attachment is called "note.txt"
