@@ -25,6 +25,7 @@ A custom CucumberJS formatter that generates Flakiness Reports from your Cucumbe
 - [Quick Start](#quick-start)
 - [Uploading Reports](#uploading-reports)
 - [Viewing Reports](#viewing-reports)
+- [Using With Other Formatters](#using-with-other-formatters)
 - [Features](#features)
   - [Environment Detection](#environment-detection)
   - [CI Integration](#ci-integration)
@@ -56,10 +57,7 @@ Add the formatter to your `cucumber.mjs`:
 export default {
   paths: ['features/**/*.feature'],
   import: ['features/support/**/*.ts'],
-  format: [
-    'progress',
-    ['@flakiness/cucumberjs', '.flakiness/cucumber-formatter.log'],
-  ],
+  format: ['@flakiness/cucumberjs'],
   formatOptions: {
     flakinessProject: 'my-org/my-project',
   },
@@ -87,8 +85,6 @@ Reports are automatically uploaded to Flakiness.io after test completion. Authen
 
 If upload fails, the report is still available locally in the output folder.
 
-If you combine this formatter with a progress formatter, keep the progress formatter on `stdout` and redirect `@flakiness/cucumberjs` to a file as shown above. Upload status messages are printed to `stderr`, so the uploaded report URL stays visible in the terminal.
-
 ## Viewing Reports
 
 After test execution, you can view the report using:
@@ -96,6 +92,22 @@ After test execution, you can view the report using:
 ```bash
 npx flakiness show ./flakiness-report
 ```
+
+## Using With Other Formatters
+
+With the default configuration (`format: ['@flakiness/cucumberjs']`), `@flakiness/cucumberjs` runs as the sole formatter and does not emit per-step progress to `stdout`. If you prefer the live progress output from CucumberJS's built-in `progress` formatter during test runs, pair it with `@flakiness/cucumberjs`:
+
+```javascript
+export default {
+  // ...
+  format: [
+    'progress',
+    ['@flakiness/cucumberjs', 'flakiness.log'],
+  ],
+};
+```
+
+Then add `flakiness.log` to your `.gitignore`. CucumberJS only allows a single formatter to write to `stdout`, so when a second formatter is added CucumberJS requires a file path for one of them. `@flakiness/cucumberjs` itself never writes to this file — the report goes to `./flakiness-report` and status messages go to `stderr` — so the log stays empty and exists only to satisfy CucumberJS.
 
 ## Features
 
@@ -209,7 +221,7 @@ export default {
   import: ['features/support/**/*.ts'],
   format: [
     'progress',
-    ['@flakiness/cucumberjs', '.flakiness/cucumber-formatter.log'],
+    ['@flakiness/cucumberjs', 'flakiness.log'],
   ],
   formatOptions: {
     flakinessProject: 'my-org/my-project',
