@@ -1,4 +1,4 @@
-.flakiness/
+flakiness.log
 types/
 lib/
 test-results/
