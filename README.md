@@ -111,6 +111,8 @@ Then add `flakiness.log` to your `.gitignore`. CucumberJS only allows a single f
 
 ## Features
 
+See [features.md](./features.md) for this formatter's status against the [Flakiness Report spec](https://github.com/flakiness/flakiness-report/blob/main/features.md).
+
 ### Environment Detection
 
 Environment variables prefixed with `FK_ENV_` are automatically included in the environment metadata. The prefix is stripped and the key is converted to lowercase.
