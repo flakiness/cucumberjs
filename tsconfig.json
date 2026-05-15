@@ -1,6 +1,7 @@
 { "include": [
       "src/**/*.ts",
-      "features/**/*.ts"
+      "features/**/*.ts",
+      "package.json"
   ],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
