@@ -27,6 +27,15 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.ok((report.ramBytes ?? 0) > 0, 'Expected ramBytes to be populated');
   assert.ok((report.ram?.length ?? 0) > 0, 'Expected ram telemetry to be populated');
 
+  // Producer / runtime provenance. `testRunner.name` comes from cucumber's own
+  // `Meta` envelope, so we assert the exact string cucumber-js emits today.
+  assert.equal(report.generatedBy?.name, '@flakiness/cucumberjs');
+  assert.match(report.generatedBy?.version ?? '', /^\d+\.\d+\.\d+/);
+  assert.equal(report.testRunner?.name, 'cucumber-js');
+  assert.match(report.testRunner?.version ?? '', /^\d+\.\d+\.\d+/);
+  assert.equal(report.runtime?.name, 'node');
+  assert.match(report.runtime?.version ?? '', /^\d+\.\d+\.\d+/);
+
   assert.ok(log.stderr.includes('flakiness show'), `Expected report hint in stderr.\n\nSTDERR:\n${log.stderr}`);
 });
 

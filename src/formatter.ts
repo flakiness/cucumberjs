@@ -7,6 +7,7 @@ import type {
   Feature,
   GherkinDocument,
   Location,
+  Meta,
   Pickle,
   Rule,
   Scenario,
@@ -30,6 +31,7 @@ import {
 } from '@flakiness/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
+import pkg from '../package.json' with { type: 'json' };
 
 type FormatterConfig = {
   disableUpload?: boolean,
@@ -68,6 +70,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
   private _finishedPromise = new ManualPromise();
   private _testCaseStartedById = new Map<string, TestCaseStarted>();
   private _testCaseFinishedById = new Map<string, TestCaseFinished>();
+  private _meta?: Meta;
 
   constructor(options: IFormatterOptions) {
     super(options);
@@ -80,6 +83,8 @@ export default class FlakinessCucumberFormatter extends Formatter {
     // Cucumber emits a stream of protocol messages; each message is wrapped
     // in an Envelope and carries one payload such as testRunStarted or attachment.
     options.eventBroadcaster.on('envelope', (envelope: Envelope) => {
+      if (envelope.meta)
+        this._meta = envelope.meta;
       if (envelope.testRunStarted)
         this._onTestRunStarted(envelope.testRunStarted);
       if (envelope.testCaseStarted)
@@ -130,16 +135,13 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
 
-    let worktree: GitWorktree;
-    let commitId: FK.CommitId;
-    try {
-      worktree = GitWorktree.create(this.cwd);
-      commitId = worktree.headCommitId();
-    } catch {
-      console.warn('[flakiness.io] Failed to fetch commit info - is this a git repo?');
+    const worktreeResult = GitWorktree.initialize(this.cwd);
+    if (!worktreeResult.ok) {
+      console.warn(`[flakiness.io] Failed to fetch commit info - is this a git repo? (${worktreeResult.error})`);
       console.error('[flakiness.io] Report is NOT generated.');
       return;
     }
+    const { worktree, commitId } = worktreeResult;
 
     const { attachments, suites } = await this._collectSuites(worktree);
 
@@ -153,6 +155,13 @@ export default class FlakinessCucumberFormatter extends Formatter {
         }),
       ],
       flakinessProject: this._config.flakinessProject,
+      generatedBy: { name: pkg.name, version: pkg.version },
+      // `Product.version` is optional in the cucumber protocol; omit the whole field
+      // when missing since the FK schema requires both `name` and `version`.
+      testRunner: this._meta?.implementation?.version
+        ? { name: this._meta.implementation.name, version: this._meta.implementation.version }
+        : undefined,
+      runtime: ReportUtils.detectRuntime(),
       title: this._config.title ?? process.env.FLAKINESS_TITLE,
       suites,
       startTimestamp: this._startTimestamp,
