@@ -1,6 +1,7 @@
 import type { IFormatterOptions } from '@cucumber/cucumber';
 import { Formatter, formatterHelpers } from '@cucumber/cucumber';
 import type {
+  AttachmentContentEncoding as AttachmentContentEncodingEnum,
   Attachment as CucumberAttachment,
   Duration,
   Envelope,
@@ -15,9 +16,9 @@ import type {
   TestCaseStarted,
   TestRunFinished,
   TestRunStarted,
+  TestStepResultStatus as TestStepResultStatusEnum,
   Timestamp
 } from '@cucumber/messages';
-import { AttachmentContentEncoding, TestStepResultStatus } from '@cucumber/messages';
 import { FlakinessReport as FK } from '@flakiness/flakiness-report';
 import {
   CIUtils,
@@ -32,6 +33,27 @@ import {
 import fs from 'node:fs';
 import path from 'node:path';
 import pkg from '../package.json' with { type: 'json' };
+
+// Enum values inlined from @cucumber/messages to keep that import type-only:
+// bundling the package drags in class-transformer and reflect-metadata, whose
+// global Reflect polyfill would load inside the user's test process.
+// The `satisfies` clauses verify every inlined string against the upstream
+// enum's actual value, so drift fails the build on a @cucumber/messages bump.
+type EnumValues<T extends Record<string, string>> = { [K in keyof T]: `${T[K]}` };
+type TestStepResultStatus = TestStepResultStatusEnum;
+const TestStepResultStatus = {
+  UNKNOWN: 'UNKNOWN',
+  PASSED: 'PASSED',
+  SKIPPED: 'SKIPPED',
+  PENDING: 'PENDING',
+  UNDEFINED: 'UNDEFINED',
+  AMBIGUOUS: 'AMBIGUOUS',
+  FAILED: 'FAILED',
+} as const satisfies EnumValues<typeof TestStepResultStatusEnum>;
+const AttachmentContentEncoding = {
+  IDENTITY: 'IDENTITY',
+  BASE64: 'BASE64',
+} as const satisfies EnumValues<typeof AttachmentContentEncodingEnum>;
 
 type FormatterConfig = {
   disableUpload?: boolean,
@@ -128,7 +150,8 @@ export default class FlakinessCucumberFormatter extends Formatter {
   private _sampleSystem(): void {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
-    this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
+    // unref() so a pending sample never keeps the host process alive.
+    this._telemetryTimer = setTimeout(this._sampleSystem, 1000).unref();
   }
 
   private async _onTestRunFinished(testRunFinished: TestRunFinished): Promise<void> {

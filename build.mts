@@ -26,7 +26,14 @@ const { errors } = await esbuild.build({
   platform: 'node',
   target: ['node22'],
   sourcemap: true,
-  bundle: false,
+  // Bundle all prod dependencies (zod in particular) so the published
+  // package has zero runtime dependencies besides CucumberJS itself.
+  bundle: true,
+  external: ['@cucumber/cucumber'],
+  banner: {
+    // Bundled CJS dependencies require() node builtins at runtime.
+    js: `import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);`,
+  },
   minify: false,
 });
 
