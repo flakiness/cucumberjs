@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@flakiness/flakiness-report':
-        specifier: ^0.34.0
-        version: 0.34.0(zod@4.3.6)
-      '@flakiness/sdk':
-        specifier: ^3.2.0
-        version: 3.2.0(@flakiness/flakiness-report@0.34.0(zod@4.3.6))
     devDependencies:
       '@cucumber/cucumber':
         specifier: ^12.7.0
@@ -24,6 +17,12 @@ importers:
       '@flakiness/cucumberjs':
         specifier: 1.3.0
         version: 1.3.0(zod@4.3.6)
+      '@flakiness/flakiness-report':
+        specifier: ^0.34.0
+        version: 0.34.0(zod@4.3.6)
+      '@flakiness/sdk':
+        specifier: ^3.2.0
+        version: 3.2.0(@flakiness/flakiness-report@0.34.0(zod@4.3.6))
       '@types/node':
         specifier: ^25.5.0
         version: 25.5.0

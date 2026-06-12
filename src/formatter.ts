@@ -128,7 +128,8 @@ export default class FlakinessCucumberFormatter extends Formatter {
   private _sampleSystem(): void {
     this._cpuUtilization.sample();
     this._ramUtilization.sample();
-    this._telemetryTimer = setTimeout(this._sampleSystem, 1000);
+    // unref() so a pending sample never keeps the host process alive.
+    this._telemetryTimer = setTimeout(this._sampleSystem, 1000).unref();
   }
 
   private async _onTestRunFinished(testRunFinished: TestRunFinished): Promise<void> {
