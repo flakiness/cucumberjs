@@ -33,7 +33,7 @@
     "@cucumber/messages": "^32.3.1",
     "@flakiness/cucumberjs": "1.6.0",
     "@flakiness/flakiness-report": "^0.34.0",
-    "@flakiness/sdk": "^3.3.1",
+    "@flakiness/sdk": "^3.5.0",
     "@types/node": "^25.9.3",
     "c8": "^11.0.0",
     "esbuild": "^0.27.7",
