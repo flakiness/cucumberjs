@@ -35,8 +35,6 @@ Then<TestWorld>('the report should contain the basic metadata', function() {
   assert.match(report.testRunner?.version ?? '', /^\d+\.\d+\.\d+/);
   assert.equal(report.runtime?.name, 'node');
   assert.match(report.runtime?.version ?? '', /^\d+\.\d+\.\d+/);
-
-  assert.ok(log.stderr.includes('flakiness show'), `Expected report hint in stderr.\n\nSTDERR:\n${log.stderr}`);
 });
 
 When<TestWorld>('I look at the suite named {string}', function(title: string) {

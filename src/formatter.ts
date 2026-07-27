@@ -26,7 +26,7 @@ import {
   GitWorktree,
   RAMUtilization,
   ReportUtils,
-  showReportCommand,
+  showReportMessage,
   uploadReport,
   writeReport
 } from '@flakiness/sdk';
@@ -195,12 +195,7 @@ export default class FlakinessCucumberFormatter extends Formatter {
     this._ramUtilization.enrich(report);
 
     await writeReport(report, attachments, this._outputFolder);
-    const command = showReportCommand(this._outputFolder);
-    console.error(`
-To open last Flakiness report, run:
-
-  ${command}
-`);
+    console.error(`\n${showReportMessage(this._outputFolder)}\n`);
 
     const disableUpload = this._config.disableUpload ?? envBool('FLAKINESS_DISABLE_UPLOAD');
     if (!disableUpload) {

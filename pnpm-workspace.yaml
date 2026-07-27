@@ -2,3 +2,4 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - '@flakiness/cucumberjs@1.6.0'
+  - '@flakiness/sdk@3.5.0'
