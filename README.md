@@ -40,6 +40,7 @@ A custom CucumberJS formatter that generates Flakiness Reports from your Cucumbe
 
 ## Requirements
 
+- Node.js 20.17.0 or higher (22.9.0 or higher on Node 22)
 - `@cucumber/cucumber` 12.0 or higher
 - Node.js project with a git repository (for commit information)
 
@@ -78,12 +79,24 @@ npx flakiness show ./flakiness-report
 
 ## Uploading Reports
 
-Reports are automatically uploaded to Flakiness.io after test completion. Authentication can be done in two ways:
+Reports are automatically uploaded to Flakiness.io after test completion. Authentication is resolved in the following order, and the first available method wins:
 
 - **Access token**: Provide a token via the `token` format option or the `FLAKINESS_ACCESS_TOKEN` environment variable.
-- **GitHub OIDC**: When running in GitHub Actions, the formatter can authenticate using GitHub's OIDC token — no access token needed. See [GitHub Actions integration](https://docs.flakiness.io/ci/github-actions/) for setup instructions.
+- **GitHub OIDC**: When running in GitHub Actions with no access token, the formatter can authenticate using GitHub's OIDC token. This requires the `flakinessProject` format option to be set, the Flakiness.io project to be bound to the GitHub repository running the workflow, and the workflow to grant the `id-token: write` permission. See [GitHub Actions integration](https://docs.flakiness.io/ci/github-actions/) for setup instructions.
+- **GitLab OIDC**: When running in GitLab CI/CD with no access token, the formatter can authenticate using a GitLab ID token. GitLab mints ID tokens when the job starts, so the job must declare one named `FLAKINESS_ID_TOKEN` whose audience is your project identifier:
 
-If upload fails, the report is still available locally in the output folder.
+  ```yaml
+  test:
+    id_tokens:
+      FLAKINESS_ID_TOKEN:
+        aud: my-org/my-project   # must match the `flakinessProject` format option
+    script:
+      - npx cucumber-js
+  ```
+
+  The `flakinessProject` format option must be set, and the Flakiness.io project must be bound to the GitLab project running the pipeline.
+
+If no method is available the upload is skipped, and if an upload fails the report is still available locally in the output folder. Either way the test run is unaffected.
 
 ## Viewing Reports
 
@@ -149,7 +162,7 @@ All options are passed via CucumberJS's `formatOptions` in your configuration fi
 
 ### `flakinessProject?: string`
 
-The Flakiness.io project identifier in `org/project` format. Used for GitHub OIDC authentication — when set, and the Flakiness.io project is bound to the GitHub repository running the workflow, the formatter authenticates uploads via GitHub Actions OIDC token with no access token required.
+The Flakiness.io project identifier in `org/project` format. Required for CI OIDC authentication. When set, and when the Flakiness.io project is bound to the repository running the pipeline, the formatter authenticates uploads via a GitHub Actions or GitLab CI/CD OIDC token with no access token required. See [Uploading Reports](#uploading-reports) for the per-provider requirements.
 
 ```javascript
 formatOptions: {
@@ -185,7 +198,7 @@ formatOptions: {
 
 Access token for authenticating with Flakiness.io when uploading reports. Defaults to the `FLAKINESS_ACCESS_TOKEN` environment variable.
 
-If no token is provided, the formatter will attempt to authenticate using GitHub OIDC.
+If no token is provided, the formatter falls back to CI OIDC on GitHub Actions and GitLab CI/CD.
 
 ```javascript
 formatOptions: {
