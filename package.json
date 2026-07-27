@@ -1,6 +1,6 @@
 {
   "name": "@flakiness/cucumberjs",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "packageManager": "pnpm@11.5.0",
   "repository": {
     "type": "git",
